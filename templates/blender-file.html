@@ -1,0 +1,92 @@
+{% extends "base-studio.html" %}
+
+{% block content %}
+    <!-- Page Heading -->
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="page-header">
+               Select a Blender file
+            </h1>
+        </div>
+    </div>
+    <!-- /.row -->
+
+    <div class="row">
+        <div class="col-lg-12">
+            {% if current %}
+                <div class="alert alert-success alert-dismissable">
+                    <div class="row">
+                        <div class="col-md-1">
+                            <form method="post">
+                                <button type="submit" name="export" class="btn btn-success">Export</button>
+                                {% csrf_token %}
+                            </form>
+                        </div>
+                        <div class="col-md-8">
+                            Current blender file: <b>{{ current }}</b>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="panel panel-default">
+            <!-- Default panel contents -->
+            <div class="panel-heading">{{ dirname }}</div>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <form class="form-inline" method="POST">
+                        <div class="row">
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary">Explore</button>
+                            </div>
+                            <div class="col-md-8">
+                                <b>..</b>
+                                <input class="form-control hidden" name="dirname" type="text" value=".." placeholder=".." readonly>
+                            </div>
+                        </div>
+                        {% csrf_token %}
+                    </form>
+                </li>
+                {% for folder in folders %}
+                    <li class="list-group-item">
+                    <form class="form-inline" method="POST">
+                        <div class="row">
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary">Explore</button>
+                            </div>
+                            <div class="col-md-8">
+                                <b>{{ folder }}</b>
+                                <input class="form-control hidden" name="dirname" type="text" value="{{ folder }}" placeholder="{{ folder }}" readonly>
+                            </div>
+                        </div>
+                        {% csrf_token %}
+                    </form>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <ul class="list-group">
+                {% for file in files %}
+                    <li class="list-group-item">
+                        <form class="form-inline" method="POST">
+                            <div class="row">
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-success">Submit</button>
+                                </div>
+                                <div class="col-md-8">
+                                    {{ file }}
+                                    <input class="form-control hidden" name="blend" type="text" value="{{ file }}" placeholder="{{ file }}" readonly>
+                                </div>
+                            </div>
+                            {% csrf_token %}
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+{% endblock %}

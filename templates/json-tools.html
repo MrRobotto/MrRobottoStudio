@@ -1,0 +1,86 @@
+{% extends "base-studio.html" %}
+
+{% block content %}
+
+    <!-- Page Heading -->
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="page-header">
+               JSON viewer
+            </h1>
+        </div>
+    </div>
+    <!-- /.row -->
+
+    <div class="row">
+        <div class="col-lg-12">
+            {% if current_blend %}
+                <div class="alert alert-success alert-dismissable">
+                    <div class="row">
+                        <div class="col-md-1">
+                            <form method="post">
+                                <button type="submit" name="export" class="btn btn-success">Export</button>
+                                {% csrf_token %}
+                            </form>
+                        </div>
+                        <div class="col-md-8">
+                            Current blender file: <b>{{ current_blend }}</b>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            {% if current_json %}
+                <div class="alert alert-success alert-dismissable">
+                    <div class="row">
+                        {% if con.connected %}
+                        <div class="col-md-1">
+                            <form method="post">
+                                <button type="submit" name="export" class="btn btn-success">Upload</button>
+                                {% csrf_token %}
+                            </form>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-8">
+                            Current JSON file: <b>{{ current_json }}</b>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row" id="jsoneditor">
+
+
+    </div>
+
+    <script>
+        // create the editor
+        var container = document.getElementById("jsoneditor");
+        var editor = new JSONEditor(container);
+
+        // set json
+        /*var json = {
+            "Array": [1, 2, 3],
+            "Boolean": true,
+            "Null": null,
+            "Number": 123,
+            "Object": {"a": "b", "c": "d"},
+            "String": "Hello World"
+        };*/
+        {% autoescape off %}
+        var json = {{ json }};
+        {% endautoescape %}
+        editor.set(json);
+
+        // get json
+        var json = editor.get();
+    </script>
+
+{% endblock %}
+
