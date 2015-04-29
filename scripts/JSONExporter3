@@ -2,6 +2,7 @@ import bpy
 import bpy.path
 import bmesh
 import os
+import math
 import json
 import mathutils
 from mathutils import *
@@ -11,7 +12,7 @@ EXT = ".json"
 MAX_DIGITS = 6
 PRECISSION = 0.0000001
 
-NUM_BONES_PERVERTEX = 7
+NUM_BONES_PERVERTEX = 4
 
 DATATYPE_FLOAT = "float"
 DATATYPE_INT = "int"
@@ -76,6 +77,7 @@ UNIFORM_MATERIAL_DIFFUSE_COLOR = "Diffuse_Color"
 UNIFORM_MATERIAL_DIFFUSE_INTENSITY = "Diffuse_Intensity"
 UNIFORM_MATERIAL_SPECULAR_COLOR = "Specular_Color"
 UNIFORM_MATERIAL_SPECULAR_INTENSITY = "Specular_Intensity"
+UNIFORM_BONE_MATRIX = "Bone_Matrix"
 
 NAME_MVP = "mvpMatrix"
 NAME_MODEL = "modelMatrix"
@@ -87,6 +89,7 @@ NAME_MATERIAL_DIFFUSE_COLOR = "diffuse_color"
 NAME_MATERIAL_DIFFUSE_INTENSITY = "diffuseInt"
 NAME_MATERIAL_SPECULAR_COLOR = "specular_color"
 NAME_MATERIAL_SPECULAR_INTENSITY = "specularInt"
+NAME_BONE_MATRIX = "bones"
 
 MESHDICT_FACENAME = "Faces"
 MESHDICT_EDGESNAME = "Edges"
@@ -97,7 +100,6 @@ DRAWTYPE_TRIANGLES = "Triangles"
 SCENEOBJTYPE_SCENE = "Scene"
 SCENEOBJTYPE_MODEL  = "Model"
 SCENEOBJTYPE_CAMERA = "Camera"
-SCENEOBJTYPE_SKELETON = "Skeleton"
 
 LENS_PERSPECTIVE = "Perspective"
 LENS_ORTHOGRAPHIC = "Orthographic"
@@ -105,13 +107,15 @@ LENS_ORTHOGRAPHIC = "Orthographic"
 DEFAULT_NAME_SCENE = "Scene"
 DEFAULT_NAME_MODEL = "Model"
 DEFAULT_NAME_CAMERA = "Camera"
-DEFAULT_NAME_SKELETON = "Skeleton"
 
 RENDERING_LEVEL_OBJECT = 0
 RENDERING_LEVEL_SCENE = 1
 RENDERING_LEVEL_TOP_SCENE_LEVEL = 2
 RENDERING_LEVEL_USER_LEVEL = 3
 
+ACTIONTYPE_SKELETAL = "Skeletal"
+
+ACTION_FPS = 24
 
 SCENE_CLEARCOLOR = [0.5,0.5,0.5,1.0]
 
@@ -131,7 +135,10 @@ def cmpVec(v1,v2):
     return (v1-v2).length < PRECISSION
 
 def mround(f):
-    return round(f, MAX_DIGITS)
+    if hasattr(f, '__iter__') or hasattr(f, '__getitem__'):
+        return [round(e, MAX_DIGITS) for e in f]
+    else:
+        return round(f, MAX_DIGITS)
 
 
 class Vertex:
@@ -188,7 +195,7 @@ class Vertex:
         if self.bind != None:
             l.extend(self.bind)
         l = [mround(e) for e in l]
-        yield from l 
+        yield from l
 
 class Face:
     """Contains the vertices of a fece, they must be three"""
@@ -221,8 +228,8 @@ class Face:
     def addVert(self,v):
         if len(self.verts) >= 3:
             raise Exception("Face must have 3 vertices")
-        self.verts.append(v) 
-            
+        self.verts.append(v)
+
 
 class GeometryList:
     def __init__(self):
@@ -277,7 +284,7 @@ class GeometryList:
 
 
 
-#TODO: Remove Name and Index 
+#TODO: Remove Name and Index
 class AttributeKey:
     """AttributeKey class for saving OGL attributes in an standard format"""
     def __init__(self, AttributeName, Name, Index, DataSize, DataType):
@@ -285,9 +292,9 @@ class AttributeKey:
         self.Name = Name
         self.Index = Index
         self.Size = DataSize
-        self.DataType = DataType  
+        self.DataType = DataType
         self.Pointer = 0
-        self.Stride = 0 
+        self.Stride = 0
     def __hash__(self):
         return hash(self.Attribute)
     def __eq__(self,k):
@@ -297,7 +304,7 @@ class AttributeKey:
     def __gt__(self,k):
         return ORDER[self.Attribute] > ORDER[k.Attribute]
     def __iter__(self):
-        yield from self.__dict__.items() 
+        yield from self.__dict__.items()
     def getDataSize(self):
         return getDataSize(self.DataType)
 
@@ -312,7 +319,7 @@ class AttributeKeyList:
         keylist.sort()
         return keylist
     def __iter__(self):
-        yield from self.asList()   
+        yield from self.asList()
     def hasAttribute(self, attr):
         return attr in self.keys.keys()
     def addKey(self,key):
@@ -328,7 +335,7 @@ class AttributeKeyList:
             k.Pointer = aux
             k.Stride = stride
             aux += k.Size
- 
+
 class Mesh:
     def __init__(self, drawType=DRAWTYPE_TRIANGLES):
         self.DrawType = drawType
@@ -357,8 +364,8 @@ class Uniform:
         self.Count = Count
     def __iter__(self):
         yield from self.__dict__.items()
-    def getShaderStr(self):
-        s = self.DataType + " " + self.Name
+    def __repr__(self):
+        s = "uniform "+self.DataType + " " + self.Name
         if self.Count > 1:
             s += "["+self.Count+"]"
         s += ";"
@@ -385,7 +392,7 @@ class Attribute:
         self.Attribute = AttributeName
         self.Name = Name
         self.Index = Index
-        self.DataType = DataType  
+        self.DataType = DataType
     def __hash__(self):
         return hash(self.Attribute)
     def __eq__(self,k):
@@ -396,6 +403,9 @@ class Attribute:
         return ORDER[self.Attribute] > ORDER[k.Attribute]
     def __iter__(self):
         yield from self.__dict__.items()
+    def __repr__(self):
+        s = "attribute "+self.DataType + " " + self.Name +";"
+        return s
 
 class UniformList:
     def __init__(self):
@@ -443,14 +453,14 @@ class Transform:
     def __iter__(self):
         yield from self.__dict__.items()
 
-        
+
 class MaterialLight:
     def __init__(self, intensity, color):
         self.Intensity = intensity
         self.Color = color
     def __iter__(self):
         yield from self.__dict__.items()
-		
+
 class Material:
     def __init__(self, name, diffuse, specular, ambient, texture = None):
         self.Name = name
@@ -460,7 +470,7 @@ class Material:
         #self.ComponentType = "Material"
     def __iter__(self):
         yield from self.__dict__.items()
-		
+
 class MaterialList:
     def __init__(self):
         self.Materials = list()
@@ -470,9 +480,9 @@ class MaterialList:
         return len(self.Materials)
     def __iter__(self):
         yield from self.Materials
-		
-		
-        
+
+
+
 class SceneObj:
     def __init__(self, name, sceneType):
         self.Type = sceneType
@@ -484,16 +494,16 @@ class SceneObj:
         self.Name = name
     def __iter__(self):
         yield from self.__dict__.items()
-        
-        
+
+
 
 
 class Scene(SceneObj):
     def __init__(self, clearColor = SCENE_CLEARCOLOR):
         SceneObj.__init__(self, DEFAULT_NAME_SCENE, SCENEOBJTYPE_SCENE)
         self.ClearColor = clearColor
-        
-        
+
+
 
 
 class Model(SceneObj):
@@ -501,6 +511,7 @@ class Model(SceneObj):
         SceneObj.__init__(self, DEFAULT_NAME_MODEL, SCENEOBJTYPE_MODEL)
         self.Mesh = Mesh()
         self.Materials = MaterialList()
+        self.Skeleton = None
 
 
 
@@ -531,7 +542,7 @@ class Camera(SceneObj):
 
 
 
-        
+
 class HierarchyObject:
     def __init__(self, name):
         self.Name = name
@@ -567,7 +578,7 @@ class Hierarchy:
             self.elements[childName] = child
     def __iter__(self):
         yield from self.root.__dict__.items()
-            
+
 
 
 class SceneObjectsList:
@@ -580,12 +591,12 @@ class SceneObjectsList:
         #    self.Hierarchy[parent.Name].append({child.Name:[]})
         #else:
         #    self.Hierarchy[child.Name] = []
-        
+
         if parent != None:
             self.Hierarchy.addChildTo(child.Name, parent.Name)
         else:
             self.Hierarchy.addChildTo(child.Name)
-            
+
     def addSceneObj(self, obj, parent=None):
         self.SceneObjects.append(obj)
         self.__addChildTo(obj,parent)
@@ -604,7 +615,7 @@ class VertexAttribute(Attribute):
 class NormalAttribute(Attribute):
     def __init__(self):
         Attribute.__init__(self,ATTRNAME_NORMAL, NAME_NORMAL, INDEX_NORMAL, DATATYPEATTR_NORMAL)
-        
+
 class MaterialAttribute(Attribute):
     def __init__(self):
         Attribute.__init__(self,ATTRNAME_MATERIAL, NAME_MATERIAL, INDEX_MATERIAL, DATATYPEATTR_MATERIAL)
@@ -630,7 +641,7 @@ class VertexKey(AttributeKey):
 class NormalKey(AttributeKey):
     def __init__(self):
         AttributeKey.__init__(self,ATTRNAME_NORMAL, NAME_NORMAL, INDEX_NORMAL, SIZEKEY_NORMAL ,DATATYPEKEY_NORMAL)
-        
+
 class MaterialKey(AttributeKey):
     def __init__(self):
         AttributeKey.__init__(self,ATTRNAME_MATERIAL, NAME_MATERIAL, INDEX_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
@@ -648,7 +659,7 @@ class BIndKey(AttributeKey):
         AttributeKey.__init__(self,ATTRNAME_BIND, NAME_BIND, INDEX_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
 
 
-		
+
 
 class MVPUniform(Uniform):
     def __init__(self):
@@ -689,6 +700,10 @@ class MaterialSpecularColor(Uniform):
 class MaterialSpecularIntensity(Uniform):
     def __init__(self, count):
         Uniform.__init__(self, UNIFORM_MATERIAL_SPECULAR_INTENSITY, NAME_MATERIAL_SPECULAR_INTENSITY, count, DATATYPE_FLOAT)
+
+class BoneMatrix(Uniform):
+    def __init__(self, count):
+        Uniform.__init__(self, UNIFORM_BONE_MATRIX, NAME_BONE_MATRIX, count, DATATYPE_MAT4)
 
 
 
@@ -732,27 +747,53 @@ class MaterialSpecularIntensityKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORM_MATERIAL_SPECULAR_INTENSITY, RENDERING_LEVEL_OBJECT, count)
 
+class BoneMatrixKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORM_BONE_MATRIX, RENDERING_LEVEL_OBJECT, count)
 
 
 VoidShader = ShaderProgram("VoidShader", [],[],"","")
-			
+
 BasicShader = ShaderProgram("BasicShader",
-[VertexAttribute(),NormalAttribute(), MaterialAttribute()],
-[MVPUniform(), MaterialDiffuseColor(2)],
+[VertexAttribute(),NormalAttribute(), MaterialAttribute(), BIndAttribute(), WeightAttribute()],
+[MVPUniform(), MaterialDiffuseColor(3), BoneMatrix(4)],
 """
 uniform mat4 mvpMatrix;
-uniform vec4 diffuse_color[2];
+uniform vec4 diffuse_color[3];
+uniform mat4 bones[4];
 
 attribute vec3 vertex;
 attribute vec3 normal;
+attribute vec4 weights;
+attribute vec4 bIndices;
 attribute float matIndex;
 
 varying vec4 color;
 
+
+vec4 applyBones2() {
+	vec4 indices = bIndices;
+	vec4 w = weights;
+	if (int(indices.x) < 0) {
+	    return vec4(vertex,1);
+	}
+	mat4 mat = bones[int(indices.x)] * w.x;
+	for (int i = 1; i < 4; i++) {
+		indices = indices.yzwx;
+		w = w.yzwx;
+		if (int(indices.x) > 0 && w.x > 0.0) {
+			mat = mat + bones[int(indices.x)] * w.x;
+		}
+	}
+	return mat * vec4(vertex,1);
+}
+
 void main() {
+    vec4 res = applyBones2();
+    vec3 finalPos = vec3(res.x/res.w, res.y/res.w, res.z/res.w);
     int matIndexInt = int(matIndex);
     color = diffuse_color[matIndexInt];
-    gl_Position = mvpMatrix * vec4(vertex,1);
+    gl_Position = mvpMatrix * vec4(finalPos ,1);
 }
 """,
 """
@@ -763,23 +804,63 @@ void main() {
 }
 """
     )
-   
+
+class VertexShaderSourceGenerator:
+    def __init__(self, uniforms, attributes):
+        self.uniforms = uniforms
+        self.attributes = attributes
+        self.src = ""
+    def __genHeaders(self):
+        s = ""
+        for unif in self.uniforms:
+            s += str(unif) + "\n"
+        s += "\n"
+        for atr in self.attributes:
+            s += str(atr) + "\n"
+        s += "\n"
+        self.src += s
+    def hasMaterials(self):
+        for atr in self.attributes:
+            if isinstance(atr, MaterialAttribute):
+                return True
+    def __genMainOpen(self):
+        self.src += "void main() {\n"
+    def __genMainClose(self):
+        self.src += "}"
+    def __genSimpleVertexShader(self):
+        self.__genHeaders()
+        self.__genMainOpen()
+        self.src += "gl_Position = " + NAME_MVP + "vec4(" + NAME_VERTEX +",1);"
+        self.__genMainClose()
+    def getVertexShaderSource(self):
+        if not self.hasMaterials():
+            self.__genSimpleVertexShader()
+            return self.src
 
 
+class ShaderSourceGenerator:
+    def __init__(self, uniforms, attributes):
+        self.uniforms = uniforms
+        self.attributes = attributes
+
+
+    def genSource(self):
+        None
 
 
 #TODO: All exporters should have a method export with an out object?
 
 class MeshExporter:
-    def __init__(self, meshOb, outMesh):
+    def __init__(self, meshOb, outMesh, boneAligner=None):
         self.outMesh = outMesh
         self.meshOb = meshOb
         self.mesh = self.meshOb.data
+        self.boneAligner = boneAligner
     def createBMesh(self):
         """Creation of a bmesh from meshOb and mesh"""
         self.bm = bmesh.new()
         self.bm.from_mesh(self.mesh)
-        bmesh.ops.triangulate(self.bm, faces=self.bm.faces)        
+        bmesh.ops.triangulate(self.bm, faces=self.bm.faces)
     def setKeys(self):
         """Adding of all available keys"""
         self.addVertexKey()
@@ -788,13 +869,13 @@ class MeshExporter:
         self.addUVKey()
         self.addArmatureKey()
     def setName(self):
-        self.outMesh.Name = self.mesh.name        
+        self.outMesh.Name = self.mesh.name
     def addVertexKey(self):
         """Add vertex coordinates key, it always exists"""
-        self.outMesh.addKey(VertexKey())       
+        self.outMesh.addKey(VertexKey())
     def addNormalKey(self):
         """Add vertex normal coordinates, it always exists"""
-        self.outMesh.addKey(NormalKey())     
+        self.outMesh.addKey(NormalKey())
     def addMaterialKey(self):
         """Add material key if we have materials"""
         if (len(self.meshOb.material_slots) > 0):
@@ -803,7 +884,7 @@ class MeshExporter:
         """Add UV coordinates if we have textures"""
         self.texLayer = self.bm.loops.layers.uv.active
         if self.texLayer != None:
-            self.outMesh.addKey(TextureKey())      
+            self.outMesh.addKey(TextureKey())
     def addArmatureKey(self):
         """Add weight and bone index keys if we have armature"""
         self.armOb = None
@@ -823,7 +904,7 @@ class MeshExporter:
                 self.outMesh.addKey(WeightKey())
                 self.outMesh.addKey(BIndKey())
                 #TODO: Multiples armatures?
-                return   
+                return
     def getWeightAndIndex(self, loop, layer, groups):
         #if layer == None:
         #    return None, None
@@ -840,9 +921,10 @@ class MeshExporter:
                 weight = dvert[group.index]
                 if (abs(weight) > PRECISSION):
                     w[count] = weight
-                    i[count] = group.index
+                    #i[count] = group.index
+                    i[count] = self.boneAligner.getIndexOf(group.name)
                     count += 1
-        return w,i 
+        return w,i
     def getUV(self, loop, layer):
         if layer == None:
             return None
@@ -852,7 +934,7 @@ class MeshExporter:
         if self.outMesh.hasKey(ATTRNAME_MATERIAL):
             return face.material_index
         else:
-            return None         
+            return None
     def export(self):
         self.createBMesh()
         self.setName()
@@ -868,7 +950,7 @@ class MeshExporter:
                 uv = self.getUV(loop, self.texLayer)
                 w,bind = self.getWeightAndIndex(loop, self.deformLayer, self.armVGroups)
                 v = Vertex(index,co,normal,matIndex, uv,w,bind)
-                f.addVert(v)  
+                f.addVert(v)
             geom.addFace(f.v1,f.v2,f.v3)
         self.outMesh.IndexData = geom.getFaceIndices()
         self.outMesh.VertexData = geom.getVertices()
@@ -897,7 +979,7 @@ class TransformExporter:
                 quat = self.ob.rotation_euler.to_quaternion()
             else:
                 self.ob.rotation_mode = 'QUATERNION'
-                quat = self.ob.rotation_quaternion     
+                quat = self.ob.rotation_quaternion
         return quat
     def export(self):
         t = self.outTrans
@@ -918,7 +1000,7 @@ class MaterialsExporter:
     def getSpecular(self, mat):
         color = mat.specular_color
         alpha = mat.specular_alpha
-        intensity = mat.specular_intensity
+        intensity = mround(mat.specular_intensity)
         color4 = [mround(e) for e in color] + [mround(alpha)]
         return MaterialLight(intensity, color4)
     def getAmbient(self, mat):
@@ -938,31 +1020,59 @@ class MaterialsExporter:
             ambient = self.getAmbient(mat)
             material = Material(name, diffuse, specular, ambient)
             self.outMaterials.addMaterial(material)
-		
+        #import random
+        #random.shuffle(self.outMaterials.Materials)
+
+meshOb = None
+
 class ModelExporter:
     def __init__(self, meshOb, outModel):
         self.meshOb = meshOb
         self.outModel = outModel
+        self.boneAligner = None
     def setName(self):
         self.outModel.setName(self.meshOb.name)
     def setShader(self):
         self.outModel.ShaderProgram = BasicShader
+    def getSkeleton(self):
+        for mod in self.meshOb.modifiers:
+            if mod.type == 'ARMATURE':
+                return mod.object
+    def getMaterials(self):
+        if (len(self.meshOb.material_slots) > 0):
+            return self.meshOb.material_slots
+        else:
+            return None
     def setUniformKeys(self):
         keys = self.outModel.UniformKeys
         keys.addUniformKey(ModelMatrixUniformKey())
         mesh = self.outModel.Mesh
-        if mesh.hasKey(ATTRNAME_MATERIAL):
-            numMat = len(self.outModel.Materials)
+        #TODO: Obtener los materiales del meshob y listos
+        materials = self.getMaterials()
+        if materials is not None:
+            numMat = len(materials)
             keys.addUniformKey(MaterialAmbientColorKey(numMat))
             keys.addUniformKey(MaterialAmbientIntensityKey(numMat))
             keys.addUniformKey(MaterialDiffuseColorKey(numMat))
             keys.addUniformKey(MaterialDiffuseIntensityKey(numMat))
             keys.addUniformKey(MaterialSpecularColorKey(numMat))
             keys.addUniformKey(MaterialSpecularIntensityKey(numMat))
+        skeleton = self.getSkeleton()
+        if skeleton is not None:
+            keys.addUniformKey(BoneMatrixKey(len(skeleton.pose.bones)))
     def export(self):
+        global meshOb
+        meshOb = self.meshOb
         self.setName()
         self.setShader()
-        MeshExporter(self.meshOb, self.outModel.Mesh).export()
+        skeletonOb = self.getSkeleton()
+        if skeletonOb is not None:
+            self.outModel.Skeleton = Skeleton()
+            self.boneAligner = BoneIndicesAligner(skeletonOb)
+            SkeletonExporter(skeletonOb, self.outModel.Skeleton, self.boneAligner).export()
+            MeshExporter(self.meshOb, self.outModel.Mesh,self.boneAligner).export()
+        else:
+            MeshExporter(self.meshOb, self.outModel.Mesh).export()
         TransformExporter(self.meshOb, self.outModel.Transform).export()
         MaterialsExporter(self.meshOb, self.outModel.Materials).export()
         self.setUniformKeys()
@@ -1002,10 +1112,11 @@ class CameraExporter:
         self.setUniformKeys()
 
 class PoseBone:
-    def __init__(self, name, rotation, location):
+    def __init__(self, name, scale, rotation, location):
         self.Name = name
         self.Rotation = rotation
         self.Location = location
+        self.Scale = scale
     def __iter__(self):
         yield from self.__dict__.items()
 
@@ -1028,23 +1139,69 @@ class Frame:
         yield from self.__dict__.items()
 
 class Action:
-    def __init__(self, name):
+    def __init__(self, name, acType):
+        self.Type = acType
         self.Name = name
+        self.FPS = None
         self.KeyFrames = []
     def addKeyFrame(self, frame):
         self.KeyFrames.append(frame)
     def __iter__(self):
         yield from self.__dict__.items()
 
-class Skeleton(SceneObj):
+class Skeleton:
     def __init__(self):
-        SceneObj.__init__(self, DEFAULT_NAME_SKELETON, SCENEOBJTYPE_SKELETON)
         self.Root = None
         self.Actions = []
+        self.Pose = None
+        self.BoneOrder = []
     def setRootBone(self, bone):
         self.Root = bone
+    def __iter__(self):
+        yield from self.__dict__.items()
 
-class ActionExporter:
+class BoneIndex:
+    def __init__(self, name, index):
+        self.Name = name
+        self.Index = index
+    def __iter__(self):
+        yield from self.__dict__.items()
+    def __lt__(self, other):
+        return self.Index < other.Index
+    def __eq__(self, other):
+        return self.Index == other.Index
+
+
+class BoneIndicesAligner:
+    def __init__(self, skeletonOb):
+        self.map = dict()
+        count = 0
+        for pbone in skeletonOb.pose.bones:
+            self.map[pbone.name] = count
+            count += 1
+    def getIndexOf(self, boneName):
+        return self.map[boneName]
+
+
+class SkeletonPoseExporter:
+    def __init__(self, skeletonOb, outSkeleton):
+        self.skeletonOb = skeletonOb
+        self.outSkeleton = outSkeleton
+    def export(self):
+        global meshOb
+        for pbone in self.skeletonOb.pose.bones:
+            b = None
+            m = pbone.matrix_channel
+            q = m.to_quaternion()
+            q.normalize()
+            s = mround(m.to_scale())
+            l = mround(m.to_translation())
+            q = mround(q)
+
+            b = PoseBone(pbone.name,s, q, l)
+            self.outSkeleton.append(b)
+
+class SingleSkeletalActionExporter:
     def __init__(self, actionOb, skeletonOb, outAction):
         self.actionOb = actionOb
         self.outAction = outAction
@@ -1052,64 +1209,50 @@ class ActionExporter:
         self.originalKeyFrame = bpy.context.scene.frame_current
         self.originalAction = self.skeletonOb.animation_data.action
     def setAction(self):
+        '''binds the action to be exported'''
         self.skeletonOb.animation_data.action = self.actionOb
     def restoreOriginalAction(self):
+        '''Restores the action in use defined by the user'''
         self.skeletonOb.animation_data.action = self.originalAction
     def setKeyFrame(self,kf):
+        '''Sets a certain frame'''
         bpy.context.scene.frame_set(kf)
     def restoreOriginalKeyframe(self):
+        '''Restores the original frame defined by the user'''
         self.setKeyFrame(self.originalKeyFrame)
     def getKeyFramesIndices(self):
+        '''Gets all key-frames for the current action'''
         keyframes = []
         for k in self.actionOb.fcurves[0].keyframe_points:
             keyframes.append(int(k.co[0]))
         return keyframes
     def getKeyFrames(self):
+        '''From every keyframe obtains the key frame index, and how are located and rotated the bones of the
+        current skeleton'''
         for kfi in self.getKeyFramesIndices():
             self.setKeyFrame(kfi)
             frame = Frame(kfi)
-            for pbone in self.skeletonOb.pose.bones:
-                #pbone.rotation_mode = 'QUATERNION'
-                #b = PoseBone(pbone.name, pbone.rotation_quaternion, pbone.head)
-                b = None
-                if pbone.parent is None:
-                    m = pbone.matrix
-                    q = m.to_quaternion()
-                    l = m.to_translation()
-                    b = PoseBone(pbone.name, q, l)
-                else:
-                    m = pbone.parent.matrix.inverted() * pbone.matrix
-                    q = m.to_quaternion()
-                    l = m.to_translation()
-                    b = PoseBone(pbone.name, q, l)
-                frame.addBone(b)
+            bones = []
+            SkeletonPoseExporter(self.skeletonOb, bones).export()
+            for bone in bones:
+                frame.addBone(bone)
             self.outAction.addKeyFrame(frame)
+    def setFps(self):
+        self.outAction.FPS = ACTION_FPS
     def export(self):
         self.setAction()
+        self.setFps()
         self.getKeyFrames()
         self.restoreOriginalKeyframe()
         self.restoreOriginalAction()
 
 
-class SkeletonExporter:
-    def __init__(self, skeletonOb, outSkeleton):
+class SkeletalActionsExporter:
+    def __init__(self, skeletonOb, outActions):
         self.skeletonOb = skeletonOb
-        self.outSkeleton = outSkeleton
-        self.actions = None
-    def setName(self):
-        self.outSkeleton.setName(self.skeletonOb.name)
-    def __getBonesRecursive(self, parentBone, children):
-        for child in children:
-            b = Bone(child.name)
-            parentBone.addChildBone(b)
-            self.__getBonesRecursive(b, child.children)
-    def getBoneHierarchy(self):
-        arm = self.skeletonOb.data
-        bones = arm.bones
-        root = Bone(bones[0].name)
-        self.__getBonesRecursive(root, bones[0].children)
-        self.outSkeleton.setRootBone(root)
+        self.outActions = outActions
     def actionBoneNames(self, action):
+        '''Gets all bones used in a certain action'''
         names = set()
         path_resolve = self.skeletonOb.path_resolve
         for fcu in action.fcurves:
@@ -1123,6 +1266,8 @@ class SkeletonExporter:
                     names.add(data.name)
         return names
     def getSkeletonActions(self):
+        '''Obtains all actions for this skeleton, if only one bone between skeleton
+        and action channels match, we have an action'''
         actions = D.actions
         bones =  set([b.name for b in self.skeletonOb.pose.bones])
         myActions = []
@@ -1132,14 +1277,53 @@ class SkeletonExporter:
                 myActions.append(ac)
         return myActions
     def export(self):
-        self.setName()
-        TransformExporter(self.skeletonOb, self.outSkeleton.Transform).export()
-        self.getBoneHierarchy()
         self.actions = self.getSkeletonActions()
         for ac in self.actions:
-            action = Action(ac.name)
-            ActionExporter(ac, self.skeletonOb, action).export()
-            self.outSkeleton.Actions.append(action)
+            action = Action(ac.name, ACTIONTYPE_SKELETAL)
+            SingleSkeletalActionExporter(ac, self.skeletonOb, action).export()
+            self.outActions.append(action)
+
+class SkeletonExporter:
+    def __init__(self, skeletonOb, outSkeleton, boneAligner):
+        self.skeletonOb = skeletonOb
+        self.outSkeleton = outSkeleton
+        self.actions = None
+        self.boneAligner = boneAligner
+    def setName(self):
+        self.outSkeleton.setName(self.skeletonOb.name)
+    def __getBonesRecursive(self, parentBone, children):
+        '''Recursive function to gets all bones'''
+        for child in children:
+            b = Bone(child.name)
+            parentBone.addChildBone(b)
+            self.__getBonesRecursive(b, child.children)
+    def getBoneHierarchy(self):
+        '''Gets the bone hierarchy'''
+        arm = self.skeletonOb.data
+        bones = arm.bones
+        root = Bone(bones[0].name)
+        self.__getBonesRecursive(root, bones[0].children)
+        self.outSkeleton.setRootBone(root)
+    def getSkeletonPose(self):
+        bones = []
+        SkeletonPoseExporter(self.skeletonOb, bones).export()
+        self.outSkeleton.Pose = bones
+    def getBoneOrder(self):
+        boneIndices = []
+        for pbone in self.skeletonOb.pose.bones:
+            boneIndex = BoneIndex(pbone.name, self.boneAligner.getIndexOf(pbone.name))
+            boneIndices.append(boneIndex)
+            #self.outSkeleton.BoneArray.append(boneIndex)
+            #self.outSkeleton.BoneOrder.append(pbone.name)
+        boneIndices.sort()
+        for boneIndex in boneIndices:
+            self.outSkeleton.BoneOrder.append(boneIndex.Name)
+        #self.outSkeleton.BoneArray.sort()
+    def export(self):
+        self.getBoneHierarchy()
+        self.getBoneOrder()
+        self.getSkeletonPose()
+        SkeletalActionsExporter(self.skeletonOb, self.outSkeleton.Actions).export()
 
 
 class SceneExporter:
@@ -1150,7 +1334,7 @@ class SceneExporter:
         keys.addUniformKey(MVPUniformKey())
     def export(self):
         self.setUniformKeys()
-    
+
 class SceneObjectsListExporter:
     def __init__(self, sceneObjs, outList):
         self.sceneObjs = sceneObjs
@@ -1168,16 +1352,16 @@ class SceneObjectsListExporter:
                 camera = Camera()
                 CameraExporter(obj, camera).export()
                 self.outList.addSceneObj(camera, scene)
-            elif (obj.type == 'ARMATURE'):
-                skeleton = Skeleton()
-                SkeletonExporter(obj, skeleton).export()
-                self.outList.addSceneObj(skeleton, scene)
+            #elif (obj.type == 'ARMATURE'):
+            #    skeleton = Skeleton()
+            #    SkeletonExporter(obj, skeleton).export()
+            #    self.outList.addSceneObj(skeleton, scene)
 
 
 def prettyPrintJSON(scene):
     """Pretty printing long lists"""
-    #All lists with a key inside "keys" will be printed in one row 
-    keys=["VertexData","IndexData","Location","Rotation","Scale","Local2World","Up","Forward","Right","ClearColor","Color"]
+    #All lists with a key inside "keys" will be printed in one row
+    keys=["VertexData","IndexData","Location","Rotation","Scale","Local2World","Up","Forward","Right","ClearColor","Color","BoneOrder"]
     st = json.dumps(scene, indent = 4, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
     spl = st.splitlines()
     r = ""
@@ -1210,7 +1394,7 @@ def prettyPrintJSON(scene):
 def writeToFile(filename, content):
     file = open(filename,"w")
     file.write(content)
-    file.close()    
+    file.close()
 
 class SceneJSONEncoder(json.JSONEncoder):
     def default(self,obj):
@@ -1219,14 +1403,14 @@ class SceneJSONEncoder(json.JSONEncoder):
         #All elements in dictTypes will be serialized as dicts
         dictTypes = [AttributeKey, Mesh, Model, Transform, Scene, Camera, Lens, ShaderProgram, Attribute, UniformKey]
         dictTypes += [Uniform, SceneObjectsList, Hierarchy, HierarchyObject, Material, MaterialLight, Action, Skeleton]
-        dictTypes += [Frame, PoseBone, Bone]
+        dictTypes += [Frame, PoseBone, Bone, BoneIndex]
         dictTypes = tuple(dictTypes)
         if isinstance(obj,dictTypes):
             return dict(obj)
         if isinstance(obj,listTypes):
             return list(obj)
         json.JSONEncoder.default(self, obj)
-        
+
 
 class Exporter:
     def __init__(self):
@@ -1247,6 +1431,6 @@ class Exporter:
                 #delete this
                 #gen = VertexShaderGenerator(model.Mesh)
                 #print(gen.genShader())
-    
-    
+
+
 Exporter().export()

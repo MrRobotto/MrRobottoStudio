@@ -17,6 +17,7 @@ urlpatterns = patterns('',
     url(r'^connect/', AndroidView.as_view(), name='connect'),
     url(r'^disconnect/', AndroidView.as_view(), name='disconnect'),
     url(r'^android-update/', AndroidView.as_view(), name='update'),
+    url(r'^fast-update/', AndroidView.as_view(), name='fast-update')
 )
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

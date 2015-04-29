@@ -14,14 +14,14 @@ def home(request):
     else:
         return redirect('studio')
 
-class Studio(View):
+def export(needsExport=True):
+    if needsExport:
+        export_to_json(get_blender_exe().get_abspath(), get_blender_file().get_abspath())
+        get_blender_file().export()
+    con = get_android_connection()
+    con.update(load_json(get_blender_file().get_json_abspath()))
 
-    def export(self, needsExport=True):
-        if needsExport:
-            export_to_json(get_blender_exe().get_abspath(), get_blender_file().get_abspath())
-            get_blender_file().export()
-        con = get_android_connection()
-        con.update(load_json(get_blender_file().get_json_abspath()))
+class Studio(View):
 
     def studio_get(self, request, context):
         context['blender'] = get_blender_exe().get_abspath()
@@ -51,8 +51,6 @@ class Studio(View):
             get_blender_exe().set_blender_exe(request.POST['exe'])
         return redirect("/blender-config")
 
-
-
     def blender_file_get(self, request, context):
         path = get_blender_file().get_path()
         context['current'] = get_blender_file().get_abspath()
@@ -75,7 +73,7 @@ class Studio(View):
             get_blender_file().set_blend_file(request.POST['blend'])
             return redirect("/json-tools")
         elif 'export' in request.POST:
-            self.export()
+            export()
             return redirect("/json-tools")
         return redirect("/blender-file")
 
@@ -88,7 +86,7 @@ class Studio(View):
 
     def json_tools_post(self, request):
         if 'export' in request.POST:
-            self.export(False)
+            export(False)
             return redirect("/json-tools")
 
 
@@ -150,6 +148,24 @@ class AndroidView(View):
         con.updated = False
         return con.response
 
+    def export(self, needsExport=True):
+        if needsExport:
+            export_to_json(get_blender_exe().get_abspath(), get_blender_file().get_abspath())
+            get_blender_file().export()
+        con = get_android_connection()
+        con.update(load_json(get_blender_file().get_json_abspath()))
+
+    def fast_update(self, request):
+        if not is_android(request):
+            return HttpResponse(403)
+        con = get_android_connection()
+        con.connect(get_user_agent(request))
+        export(needsExport=False)
+        #con.disconnect()
+        con.updated = False
+        return con.response
+
+
     def get(self, request):
         if request.path == "/connect/":
             return self.connect(request)
@@ -157,4 +173,6 @@ class AndroidView(View):
             return self.disconnect(request)
         elif request.path == "/android-update/":
             return self.wait_update(request)
+        elif request.path == "/fast-update/":
+            return self.fast_update(request)
 
