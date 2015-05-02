@@ -1,7 +1,7 @@
 import os
 import json
 from django.http import HttpResponse
-from MrRobottoServer import settings
+from MrRobottoStudioServer import settings
 from utils import get_abs_path, get_directory
 
 SETTINGS_FILE = "settings.json"

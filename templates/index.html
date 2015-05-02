@@ -15,7 +15,7 @@
 
                 <div class="row">
                     <div class="col-lg-12">
-                        {% if not con.connected %}
+                        {% if not connected %}
                         <div class="alert alert-danger">
                                 There is no online devices right now
                         </div>
@@ -32,16 +32,16 @@
                         {% if blender %}
                             <div class="alert alert-success alert-dismissable">
                                 Blender is located on: <b>{{ blender }}</b>
-                                <span class="file-input btn btn-default btn-file pull-right">
-                                    Change location <input id="blender-change" type="file" multiple="">
-                                </span>
+                                <a class="btn btn-default pull-right" href="/blender-config">
+                                    Change location
+                                </a>
                             </div>
                         {% else %}
                             <div class="alert alert-danger alert-dismissable">
                                 Blender is not configured
-                                <span class="btn btn-default btn-file pull-right">
-                                    Set location <input type="file">
-                                </span>
+                                <a class="btn btn-default pull-right" href="/blender-config">
+                                    Set location
+                                </a>
                             </div>
                         {% endif %}
                     </div>
@@ -52,16 +52,16 @@
                         {% if blender_file %}
                             <div class="alert alert-success alert-dismissable">
                                 Blender file selected: <b>{{ blender_file }}</b>
-                                <span class="file-input btn btn-default btn-file pull-right">
-                                    Change location <input id="blender-change" type="file" multiple="">
-                                </span>
+                                <a class="btn btn-default pull-right" href="/blender-file">
+                                    Change location
+                                </a>
                             </div>
                         {% else %}
                             <div class="alert alert-danger alert-dismissable">
                                 There is no blender file selected
-                                <span class="btn btn-default btn-file pull-right">
-                                    Select file <input type="file">
-                                </span>
+                                <a class="btn btn-default pull-right" href="/blender-file">
+                                    Select file
+                                </a>
                             </div>
                         {% endif %}
                     </div>

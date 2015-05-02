@@ -7,6 +7,11 @@ from models import get_android_connection, get_blender_search_dir, set_blender_s
 from models import get_blender_exe, get_blender_file
 from utils import *
 
+from ServerSocket import runServerSocket, getSocketServer
+runServerSocket()
+
+def caca(request):
+    getSocketServer().android.sendall("caca")
 
 def home(request):
     if is_android(request):
@@ -86,7 +91,12 @@ class Studio(View):
 
     def json_tools_post(self, request):
         if 'export' in request.POST:
-            export(False)
+            export()
+            return redirect("/json-tools")
+        elif 'upload' in request.POST:
+            return redirect("/json-tools")
+        elif 'save' in request.POST:
+            save_json(get_blender_file().get_json_abspath(), request.POST['json'])
             return redirect("/json-tools")
 
 
@@ -101,7 +111,7 @@ class Studio(View):
     def get(self, request):
         con = get_android_connection()
         context = dict()
-        context['con'] = con
+        context['connected'] = getSocketServer().android is not None
         context['ip'] = get_ip()
         if request.path == "/studio/":
             return self.studio_get(request, context)

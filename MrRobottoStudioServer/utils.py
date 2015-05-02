@@ -1,6 +1,6 @@
 import os
 import subprocess
-from MrRobottoServer import settings
+from MrRobottoStudioServer import settings
 
 
 def is_android(request):
@@ -23,12 +23,20 @@ def get_directory(dir):
     g = os.walk(dir)
     return g.next()
 
-def get_abs_path(dir, f):
-    return os.path.abspath(os.path.join(dir,f))
+def get_abs_path(dir, file=None):
+    if file is not None:
+        return os.path.abspath(os.path.join(dir,file))
+    else:
+        return os.path.abspath(dir)
 
 def export_to_json(blender, file):
     script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter3')
     subprocess.call([blender, file, '--background','--python',script])
+
+def save_json(filepath, json):
+    f = file(filepath, 'w')
+    f.write(json)
+    f.close()
 
 def load_json(filename):
     if filename:

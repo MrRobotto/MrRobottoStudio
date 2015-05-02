@@ -36,6 +36,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'MrRobottoStudioServer'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -48,7 +49,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'MrRobottoServer.urls'
+ROOT_URLCONF = 'MrRobottoStudioServer.urls'
 
 WSGI_APPLICATION = 'MrRobottoServer.wsgi.application'
 

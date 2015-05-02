@@ -5,6 +5,7 @@ import os
 import math
 import json
 import mathutils
+import threading
 from mathutils import *
 import bpy.types
 
@@ -234,6 +235,7 @@ class Face:
 class GeometryList:
     def __init__(self):
         self.vertices = set()
+        self.baseMap = dict()
         self.indices = set()
         self.tail = list()
         self.base = set()
@@ -254,6 +256,7 @@ class GeometryList:
                 self.indices.add(v.mainIndex)
                 self.count = max(self.count,v.mainIndex)
                 self.base.add(v)
+                self.baseMap[v.index] = v
             else:
                 self.tail.append(v)
             for i in range(len(self.tail)):
@@ -261,9 +264,14 @@ class GeometryList:
             self.vertices.add(v)
             return v
         else:
-            for u in self.vertices:
+            if v in self.base:
+                return self.baseMap[v.index]
+            for u in self.tail:
                 if u == v:
                     return u
+            #for u in self.vertices:
+            #    if u == v:
+            #        return u
     def checkGeometry(self):
         if len(self.base) != self.count:
             self.count = len(self.base)
@@ -367,7 +375,7 @@ class Uniform:
     def __repr__(self):
         s = "uniform "+self.DataType + " " + self.Name
         if self.Count > 1:
-            s += "["+self.Count+"]"
+            s += "["+str(self.Count)+"]"
         s += ";"
         return s
 
@@ -585,27 +593,16 @@ class SceneObjectsList:
     def __init__(self):
         self.SceneObjects = []
         self.Hierarchy = Hierarchy()
-        #self.Hierarchy = dict()
     def __addChildTo(self, child, parent=None):
-        #if parent != None:
-        #    self.Hierarchy[parent.Name].append({child.Name:[]})
-        #else:
-        #    self.Hierarchy[child.Name] = []
-
         if parent != None:
             self.Hierarchy.addChildTo(child.Name, parent.Name)
         else:
             self.Hierarchy.addChildTo(child.Name)
-
     def addSceneObj(self, obj, parent=None):
         self.SceneObjects.append(obj)
         self.__addChildTo(obj,parent)
     def __iter__(self):
         yield from self.__dict__.items()
-
-
-
-
 
 
 class VertexAttribute(Attribute):
@@ -657,7 +654,6 @@ class WeightKey(AttributeKey):
 class BIndKey(AttributeKey):
     def __init__(self):
         AttributeKey.__init__(self,ATTRNAME_BIND, NAME_BIND, INDEX_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
-
 
 
 
@@ -752,15 +748,56 @@ class BoneMatrixKey(UniformKey):
         UniformKey.__init__(self, UNIFORM_BONE_MATRIX, RENDERING_LEVEL_OBJECT, count)
 
 
+
+def getAttributeFromAttributeKey(attrib):
+    if isinstance(attrib, VertexKey):
+        return VertexAttribute()
+    elif isinstance(attrib, NormalKey):
+        return NormalAttribute()
+    elif isinstance(attrib, MaterialKey):
+        return MaterialAttribute()
+    elif isinstance(attrib, TextureKey):
+        return TextureAttribute()
+    elif isinstance(attrib, WeightKey):
+        return WeightAttribute()
+    elif isinstance(attrib, BIndKey):
+        return BIndAttribute()
+
+def getUniformFromUniformKey(uniform):
+     if isinstance(uniform,MVPUniformKey):
+        return MVPUniform()
+     if isinstance(uniform,ModelMatrixUniformKey):
+        return ModelMatrixUniform()
+     if isinstance(uniform,ViewMatrixUniformKey):
+        return ViewMatrixUniform()
+     if isinstance(uniform,ProjectionMatrixUniformKey):
+        return ProjectionMatrixUniform()
+     if isinstance(uniform,MaterialAmbientColorKey):
+        return MaterialAmbientColor(uniform.Count)
+     if isinstance(uniform,MaterialAmbientIntensityKey):
+        return MaterialAmbientIntensity(uniform.Count)
+     if isinstance(uniform,MaterialDiffuseColorKey):
+        return MaterialDiffuseColor(uniform.Count)
+     if isinstance(uniform,MaterialDiffuseIntensityKey):
+        return MaterialDiffuseIntensity(uniform.Count)
+     if isinstance(uniform,MaterialSpecularColorKey):
+        return MaterialSpecularColor(uniform.Count)
+     if isinstance(uniform,MaterialSpecularIntensityKey):
+        return MaterialSpecularIntensity(uniform.Count)
+     if isinstance(uniform,BoneMatrixKey):
+        return BoneMatrix(uniform.Count)
+
+
+
 VoidShader = ShaderProgram("VoidShader", [],[],"","")
 
 BasicShader = ShaderProgram("BasicShader",
 [VertexAttribute(),NormalAttribute(), MaterialAttribute(), BIndAttribute(), WeightAttribute()],
-[MVPUniform(), MaterialDiffuseColor(3), BoneMatrix(4)],
+[MVPUniform(), MaterialDiffuseColor(1), BoneMatrix(13)],
 """
 uniform mat4 mvpMatrix;
-uniform vec4 diffuse_color[3];
-uniform mat4 bones[4];
+uniform vec4 diffuse_color[1];
+uniform mat4 bones[13];
 
 attribute vec3 vertex;
 attribute vec3 normal;
@@ -805,47 +842,168 @@ void main() {
 """
     )
 
-class VertexShaderSourceGenerator:
+class ShaderSourceGeneratorBase:
     def __init__(self, uniforms, attributes):
         self.uniforms = uniforms
         self.attributes = attributes
+        self.varying = []
         self.src = ""
-    def __genHeaders(self):
+    def genHeaders(self, un=True, at=True, va=True):
         s = ""
-        for unif in self.uniforms:
-            s += str(unif) + "\n"
-        s += "\n"
-        for atr in self.attributes:
-            s += str(atr) + "\n"
-        s += "\n"
+        if un:
+            for unif in self.uniforms:
+                s += str(unif) + "\n"
+            s += "\n"
+        if at:
+            for atr in self.attributes:
+                s += str(atr) + "\n"
+            s += "\n"
+        if va:
+            for var in self.varying:
+                s += var + "\n"
+            s += "\n"
         self.src += s
+    def genVaryingColor(self):
+        self.varying.append("varying vec4 vcolor;")
     def hasMaterials(self):
         for atr in self.attributes:
             if isinstance(atr, MaterialAttribute):
                 return True
-    def __genMainOpen(self):
+    def hasBones(self):
+        for atr in self.attributes:
+            if isinstance(atr, BIndAttribute):
+                return True
+    def genMainOpen(self):
         self.src += "void main() {\n"
-    def __genMainClose(self):
-        self.src += "}"
-    def __genSimpleVertexShader(self):
-        self.__genHeaders()
-        self.__genMainOpen()
-        self.src += "gl_Position = " + NAME_MVP + "vec4(" + NAME_VERTEX +",1);"
-        self.__genMainClose()
-    def getVertexShaderSource(self):
-        if not self.hasMaterials():
-            self.__genSimpleVertexShader()
+    def genMainClose(self):
+        self.src += "}\n"
+
+class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
+    def __init__(self, uniforms, attributes):
+        ShaderSourceGeneratorBase.__init__(self, uniforms, attributes)
+    def genFragmentBasic(self):
+        self.src += "\tgl_FragColor = vcolor;\n"
+    def genMaterialFragmentShader(self):
+        self.genVaryingColor()
+        self.genHeaders(un=False,at=False)
+        self.genMainOpen()
+        self.genFragmentBasic()
+        self.genMainClose()
+    def genSource(self):
+        if self.hasMaterials():
+            self.genMaterialFragmentShader()
             return self.src
 
 
-class ShaderSourceGenerator:
+class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
     def __init__(self, uniforms, attributes):
-        self.uniforms = uniforms
-        self.attributes = attributes
-
-
+        ShaderSourceGeneratorBase.__init__(self, uniforms, attributes)
+    def genColorFromMaterial(self):
+        self.src += "\tint matIndexInt = int(" + NAME_MATERIAL + ");\n"
+        self.src += "\tvcolor = " + NAME_MATERIAL_DIFFUSE_COLOR +"[matIndexInt];\n"
+    def genApplyBonesFunction(self):
+        s = ""
+        s += "vec3 applyBones() {\n"
+        s += "\tvec4 indices = " + NAME_BIND + ";\n"
+        s += "\tvec4 w = " + NAME_WEIGHT + ";\n"
+        s += "\t if (int(indices.x) < 0) {\n"
+        s += "\t\treturn " + NAME_VERTEX + ";\n"
+        s += "\t}\n"
+        s += "\tmat4 mat = " + NAME_BONE_MATRIX + "[int(indices.x)] * w.x;\n"
+        s += "\tfor (int i = 1; i < 4; i++) {\n"
+        s += "\t\tindices = indices.yzwx;\n"
+        s += "\t\tw = w.yzwx;\n"
+        s += "\t\tif (int(indices.x) > 0 && w.x > 0.0) {\n"
+        s += "\t\t\tmat = mat + " + NAME_BONE_MATRIX + "[int(indices.x)] * w.x;\n"
+        s += "\t\t}\n"
+        s += "\t}\n"
+        s += "\tvec4 v = mat * vec4(" + NAME_VERTEX + ",1);\n"
+        s += "\treturn vec3(v.x/v.w, v.y/v.w, v.z/v.w);\n"
+        s += "}\n"
+        s += "\n"
+        self.src += s
+    def genMVPVertex(self):
+        self.src += "\tgl_Position = " + NAME_MVP + " * " + "vec4(" + NAME_VERTEX +",1);\n"
+    def genBoneApplyMVPVertex(self):
+        self.src += "\tvec3 pos = applyBones();\n"
+        self.src += "\tgl_Position = " + NAME_MVP + " * " + "vec4(pos, 1);\n"
+    def genSimpleVertexShader(self):
+        self.genHeaders()
+        self.genMainOpen()
+        self.genMVPVertex()
+        self.genMainClose()
+    def genMaterialVertexShader(self):
+        self.genVaryingColor()
+        self.genHeaders()
+        self.genMainOpen()
+        self.genColorFromMaterial()
+        self.genMVPVertex()
+        self.genMainClose()
+    def genMaterialBonesVertexShader(self):
+        self.genVaryingColor()
+        self.genHeaders()
+        self.genApplyBonesFunction()
+        self.genMainOpen()
+        self.genColorFromMaterial()
+        self.genBoneApplyMVPVertex()
+        self.genMainClose()
     def genSource(self):
-        None
+        if not self.hasMaterials() and not self.hasBones():
+            self.genSimpleVertexShader()
+            return self.src
+        elif self.hasMaterials() and not self.hasBones():
+            self.genMaterialVertexShader()
+            return self.src
+        elif self.hasMaterials() and self.hasBones():
+            self.genMaterialBonesVertexShader()
+            return self.src
+
+
+class ShaderGenerator:
+    counter = 0
+    def __init__(self, obj):
+        self.obj = obj
+        self.attributes = self.getAttributesOfObject()
+        self.uniforms = self.getUniformsOfObject()
+        self.baseName = "ShaderProgram_"
+    def getAttributesOfObject(self):
+        if isinstance(self.obj, Model):
+            attributes = []
+            for key in self.obj.Mesh.AttributeKeys:
+                attributes.append(getAttributeFromAttributeKey(key))
+            return attributes
+        else:
+            return None
+    def getUniformsOfObject(self):
+        uniforms = []
+        for key in self.obj.UniformKeys:
+            uniforms.append(getUniformFromUniformKey(key))
+        return uniforms
+    def getName(self):
+        name = self.baseName + str(ShaderGenerator.counter)
+        ShaderGenerator.counter += 1
+        return name
+    def setModelUniforms(self):
+        for unif in self.uniforms:
+            if isinstance(unif, ModelMatrixUniform):
+                break
+        self.uniforms.remove(unif)
+        self.uniforms.insert(0, MVPUniform())
+    def genSource(self):
+        vs, fs = None, None
+        if isinstance(self.obj, Model):
+            self.setModelUniforms()
+            vs = VertexShaderSourceGenerator(self.uniforms, self.attributes).genSource()
+            fs = FragmentShaderSourceGenerator([], self.attributes).genSource()
+        print("VertexShader")
+        print(vs)
+        print("FragmentShader")
+        print(fs)
+        return vs, fs
+    def genShaderProgram(self):
+        vs, fs = self.genSource()
+        return ShaderProgram(self.getName(), self.attributes, self.uniforms, vs, fs)
+
 
 
 #TODO: All exporters should have a method export with an out object?
@@ -935,6 +1093,26 @@ class MeshExporter:
             return face.material_index
         else:
             return None
+    def getFaces(self, bmFaces, geom):
+        faces = []
+        for face in bmFaces:
+            f = Face()
+            for loop in face.loops:
+                index = loop.vert.index
+                co = loop.vert.co
+                normal = loop.vert.normal
+                matIndex = self.getMaterialIndex(face)
+                uv = self.getUV(loop, self.texLayer)
+                w,bind = self.getWeightAndIndex(loop, self.deformLayer, self.armVGroups)
+                v = Vertex(index,co,normal,matIndex, uv,w,bind)
+                f.addVert(v)
+            #geom.addFace(f.v1,f.v2,f.v3)
+            faces.append(f)
+        l = threading.Lock()
+        l.acquire()
+        for f in faces: geom.addFace(f.v1, f.v2, f.v3)
+        l.release()
+
     def export(self):
         self.createBMesh()
         self.setName()
@@ -956,6 +1134,8 @@ class MeshExporter:
         self.outMesh.VertexData = geom.getVertices()
         self.outMesh.Count = geom.getNumFaces()
         self.bm.free()
+
+import time
 
 class TransformExporter:
     def __init__(self, ob, outTrans):
@@ -1020,10 +1200,6 @@ class MaterialsExporter:
             ambient = self.getAmbient(mat)
             material = Material(name, diffuse, specular, ambient)
             self.outMaterials.addMaterial(material)
-        #import random
-        #random.shuffle(self.outMaterials.Materials)
-
-meshOb = None
 
 class ModelExporter:
     def __init__(self, meshOb, outModel):
@@ -1033,7 +1209,8 @@ class ModelExporter:
     def setName(self):
         self.outModel.setName(self.meshOb.name)
     def setShader(self):
-        self.outModel.ShaderProgram = BasicShader
+        #self.outModel.ShaderProgram = BasicShader
+        self.outModel.ShaderProgram = ShaderGenerator(self.outModel).genShaderProgram()
     def getSkeleton(self):
         for mod in self.meshOb.modifiers:
             if mod.type == 'ARMATURE':
@@ -1061,10 +1238,7 @@ class ModelExporter:
         if skeleton is not None:
             keys.addUniformKey(BoneMatrixKey(len(skeleton.pose.bones)))
     def export(self):
-        global meshOb
-        meshOb = self.meshOb
         self.setName()
-        self.setShader()
         skeletonOb = self.getSkeleton()
         if skeletonOb is not None:
             self.outModel.Skeleton = Skeleton()
@@ -1076,6 +1250,7 @@ class ModelExporter:
         TransformExporter(self.meshOb, self.outModel.Transform).export()
         MaterialsExporter(self.meshOb, self.outModel.Materials).export()
         self.setUniformKeys()
+        self.setShader()
 
 class CameraExporter:
     def __init__(self, cameraOb, outCamera):
@@ -1188,7 +1363,6 @@ class SkeletonPoseExporter:
         self.skeletonOb = skeletonOb
         self.outSkeleton = outSkeleton
     def export(self):
-        global meshOb
         for pbone in self.skeletonOb.pose.bones:
             b = None
             m = pbone.matrix_channel
@@ -1220,12 +1394,23 @@ class SingleSkeletalActionExporter:
     def restoreOriginalKeyframe(self):
         '''Restores the original frame defined by the user'''
         self.setKeyFrame(self.originalKeyFrame)
+    def __addErrorCorrectingFrames(self, keyframes):
+        kfs = {k for k in keyframes}
+        for i in range(1, len(keyframes)):
+            k1, k2 = keyframes[i-1], keyframes[i]
+            if abs(k1-k2) > 5:
+                newframes=self.__addErrorCorrectingFrames([k1,int((k1+k2)/2), k2])
+                for e in newframes:
+                    kfs.add(e)
+        r = list(kfs)
+        r.sort()
+        return r
     def getKeyFramesIndices(self):
         '''Gets all key-frames for the current action'''
         keyframes = []
         for k in self.actionOb.fcurves[0].keyframe_points:
             keyframes.append(int(k.co[0]))
-        return keyframes
+        return self.__addErrorCorrectingFrames(keyframes)
     def getKeyFrames(self):
         '''From every keyframe obtains the key frame index, and how are located and rotated the bones of the
         current skeleton'''
@@ -1276,12 +1461,21 @@ class SkeletalActionsExporter:
             if len(bones.intersection(actionBoneNames))>0:
                 myActions.append(ac)
         return myActions
+    def exportThreadTarget(self, ac, skeletonOb, action):
+        SingleSkeletalActionExporter(ac, self.skeletonOb, action).export()
+        l = threading.Lock()
+        l.acquire()
+        self.outActions.append(action)
+        l.release()
     def export(self):
         self.actions = self.getSkeletonActions()
         for ac in self.actions:
             action = Action(ac.name, ACTIONTYPE_SKELETAL)
-            SingleSkeletalActionExporter(ac, self.skeletonOb, action).export()
-            self.outActions.append(action)
+            t = threading.Thread(target=self.exportThreadTarget, args=(ac, self.skeletonOb, action))
+            t.start()
+            t.join()
+            #SingleSkeletalActionExporter(ac, self.skeletonOb, action).export()
+            #self.outActions.append(action)
 
 class SkeletonExporter:
     def __init__(self, skeletonOb, outSkeleton, boneAligner):
@@ -1343,19 +1537,18 @@ class SceneObjectsListExporter:
         scene = Scene()
         SceneExporter(scene).export()
         self.outList.addSceneObj(scene)
+        meshes = []
         for obj in self.sceneObjs:
             if (obj.type == 'MESH'):
-                model = Model()
-                ModelExporter(obj, model).export()
-                self.outList.addSceneObj(model, scene)
+                meshes.append(obj)
             elif (obj.type == 'CAMERA'):
                 camera = Camera()
                 CameraExporter(obj, camera).export()
                 self.outList.addSceneObj(camera, scene)
-            #elif (obj.type == 'ARMATURE'):
-            #    skeleton = Skeleton()
-            #    SkeletonExporter(obj, skeleton).export()
-            #    self.outList.addSceneObj(skeleton, scene)
+        for obj in meshes:
+            model = Model()
+            ModelExporter(obj, model).export()
+            self.outList.addSceneObj(model, scene)
 
 
 def prettyPrintJSON(scene):
@@ -1413,24 +1606,17 @@ class SceneJSONEncoder(json.JSONEncoder):
 
 
 class Exporter:
+    sceneObjectsList = SceneObjectsList()
+
     def __init__(self):
         #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
         self.filename = os.path.splitext(D.filepath)[0]
 
     def export(self):
-        sceneObjectsList = SceneObjectsList()
-        SceneObjectsListExporter(D.objects,sceneObjectsList).export()
-        writeToFile(self.filename + EXT, prettyPrintJSON(sceneObjectsList))
 
-        #for obj in D.objects:
-        #    if (obj.type == 'MESH'):
-        #        model = Model()
-        #        ModelExporter(obj, model).export()
-        #        writeToFile(self.filepath+model.Name+EXT, prettyPrintJSON(model))
-
-                #delete this
-                #gen = VertexShaderGenerator(model.Mesh)
-                #print(gen.genShader())
+        SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
+        #writeToFile(self.filename + EXT, prettyPrintJSON(sceneObjectsList))
+        writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
 
 
 Exporter().export()
