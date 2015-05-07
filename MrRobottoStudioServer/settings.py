@@ -36,7 +36,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'MrRobottoStudioServer'
+    #'MrRobottoStudioServer'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -51,7 +51,7 @@ MIDDLEWARE_CLASSES = (
 
 ROOT_URLCONF = 'MrRobottoStudioServer.urls'
 
-WSGI_APPLICATION = 'MrRobottoServer.wsgi.application'
+WSGI_APPLICATION = 'MrRobottoStudioServer.wsgi.application'
 
 
 # Database

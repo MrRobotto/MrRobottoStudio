@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import json
 from django.http import HttpResponse
@@ -50,6 +51,10 @@ class AndroidConnection:
     def update(self, data):
         self.response.content = data
         self.updated = True
+    def update_mrr(self, data):
+        response = HttpResponse(data)
+        response['Content-Disposition'] = "attachment;"
+        response['Content-Length'] = len(data)
     def disconnect(self):
         self.ua = None
         self.response = None
@@ -120,7 +125,7 @@ class BlenderExe:
     def get_abspath(self):
         return self.abspath
 
-blender_exe = BlenderExe()
+#blender_exe = BlenderExe()
 
 def get_blender_exe():
     global blender_exe
@@ -161,14 +166,21 @@ class BlenderFile:
         return self.file_abspath
     def get_json_abspath(self):
         return self.json_abspath
+    def get_mrr_abspath(self):
+        return self.mrr_abspath
     def export(self):
         self.exported = True
         self.json = self.file.split('.')[0] + ".json"
         self.json_abspath = get_abs_path(self.path, self.json)
         save_to_settings(self)
+    def export_mrr(self):
+        self.exported = True
+        self.mrr = self.file.split('.')[0] + ".mrr"
+        self.mrr_abspath = get_abs_path(self.path, self.mrr)
+        save_to_settings(self)
 
 
-blender_file = BlenderFile()
+#blender_file = BlenderFile()
 
 def get_blender_file():
     global blender_file
@@ -179,7 +191,7 @@ def get_blender_file():
 
 
 
-blender_search_dir = settings.BASE_DIR
+#blender_search_dir = settings.BASE_DIR
 
 def get_blender_search_dir():
     global blender_search_dir

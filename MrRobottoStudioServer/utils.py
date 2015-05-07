@@ -1,5 +1,6 @@
 import os
 import subprocess
+import struct
 from MrRobottoStudioServer import settings
 
 
@@ -26,10 +27,15 @@ def get_directory(dir):
 def get_abs_path(dir, file=None):
     if file is not None:
         return os.path.abspath(os.path.join(dir,file))
-    else:
+    elif dir is not None:
         return os.path.abspath(dir)
+    return None
 
 def export_to_json(blender, file):
+    script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter3')
+    subprocess.call([blender, file, '--background','--python',script])
+
+def export_to_mrr(blender, file):
     script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter3')
     subprocess.call([blender, file, '--background','--python',script])
 
@@ -43,3 +49,42 @@ def load_json(filename):
         f = open(filename)
         o = f.read()
         return o.replace('"','\"')
+
+def load_mrr(filename):
+    if filename:
+        f = open(filename, "rb")
+        o = f.read()
+        return o
+
+def decode_mrr(filename):
+    f = open(filename, "rb")
+    magic = f.readline().strip()
+    if not magic == 'MRROBOTTOFILE':
+        return None, None
+    command = f.read(4)
+    json = None
+    images = dict()
+    while not command == "FNSH":
+        if command == "JSON":
+            l = f.read(4)
+            l = struct.unpack('>I', l)[0]
+            f.read(1)
+            json = f.read(l)
+            f.read(1)
+        if command == "TEXT":
+            ntex = f.read(4)
+            ntex = struct.unpack('>I', ntex)[0]
+            f.read(1)
+            for texi in range(ntex):
+                nameTag = f.read(4)
+                nameLen = f.read(4)
+                nameLen = struct.unpack('>I', nameLen)[0]
+                texName = f.read(nameLen)
+                texLen = f.read(4)
+                texLen = struct.unpack('>I', texLen)[0]
+                f.read(1)
+                image = f.read(texLen)
+                f.read(1)
+                images[texName] = image
+        command = f.read(4)
+    return json, images

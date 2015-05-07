@@ -1,34 +1,78 @@
 import os
 import settings
+import utils
 from utils import *
+import json
+
+SETTINGS_FILE = "settings.json"
+
+def save_to_settings(obj):
+    try:
+        f = open(SETTINGS_FILE)
+    except:
+        f = open(SETTINGS_FILE, "w")
+        f.close()
+    f = open(SETTINGS_FILE)
+    try:
+        d = json.loads(f.read())
+    except:
+        d = dict()
+    f.close()
+    d[obj.__class__.__name__] = obj.__dict__
+    f = open(SETTINGS_FILE,"w")
+    f.write(json.dumps(d))
+    f.close()
+
+def load_from_settings(obj):
+    try:
+        f = open(SETTINGS_FILE)
+    except:
+        return False
+    d = json.loads(f.read())
+    f.close()
+    if obj.__class__.__name__ in d:
+        obj.__dict__ = d[obj.__class__.__name__]
+        return True
+    return False
+
 
 class FileSystemNavigator:
     def __init__(self, dir=None):
-        if dir == None:
-            self.current_dir = get_abs_path(settings.BASE_DIR)
+        if dir is not None:
+            self.dir_path = get_abs_path(dir)
         else:
-            self.current_dir = get_abs_path(dir)
+            if not load_from_settings(self):
+                self.dir_path = get_abs_path(settings.BASE_DIR)
+                save_to_settings(self)
     def navigate_to(self, des):
-        self.current_dir = get_abs_path(des)
+        self.dir_path = get_abs_path(os.path.join(self.dir_path,des))
+        save_to_settings(self)
     def get_directory_folders(self):
-        return get_directory(self.current_dir)[1]
+        return get_directory(self.dir_path)[1]
     def get_directory_files(self):
-        return get_directory(self.current_dir)[2]
+        return get_directory(self.dir_path)[2]
     def dir_contains_file(self, filename):
         return filename in self.get_directory_files()
 
 class FileData:
     def __init__(self, dir=None, f=None):
-        self.current_dir = None
+        self.dir_path = None
         self.file = None
         self.file_path = None
         if dir is not None and f is not None:
             self.setFile(dir, f)
-    def setFile(self, dif, f):
-        self.current_dir = get_abs_path(dir)
+        elif dir is not None and f is None:
+            self.dir_path = dir
+        elif dir is None and f is None:
+            if not load_from_settings(self):
+                self.dir_path = settings.BASE_DIR
+                save_to_settings(self)
+    def setFile(self, dir, f):
+        self.dir_path = get_abs_path(dir)
         self.file = f
         self.file_path = get_abs_path(dir, f)
-    def get_file_name(self):
+        save_to_settings(self)
+    def get_file_base_name(self):
         return self.file.split('.')[0]
 
 class BlenderExe(FileData):
@@ -59,7 +103,17 @@ class BlenderExe(FileData):
         else:
             None, None
 
-class BlendFile:
+class BlendFile(FileData):
     def __init__(self, dir=None, f=None):
-        self.blend_file = FileData(dir, f)
-        self.json_file = FileData(self.blend_file.get_file_name()+".json")
+        FileData.__init__(self, dir, f)
+
+class MRRFile(FileData):
+    def __init__(self, dir=None, f=None):
+        FileData.__init__(self, dir, f)
+        if not 'exported' in self.__dict__:
+            self.exported = False
+    def export(self):
+        self.exported = True
+        save_to_settings(self)
+    def decode(self):
+        return utils.decode_mrr(self.file_path)
