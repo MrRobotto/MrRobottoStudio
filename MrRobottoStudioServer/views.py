@@ -1,42 +1,21 @@
-import mimetypes
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from django.template.response import TemplateResponse
 from django.shortcuts import redirect
 from django.views.generic import View
 
-from models import get_android_connection, get_blender_search_dir, set_blender_search_dir
-from models import get_blender_exe, get_blender_file
-from utils import *
-import utils
 from AppController import *
+from ServerSocket import AndroidTCPServer
 
-from ServerSocket import runServerSocket, getSocketServer
-runServerSocket()
 
-def caca(request):
-    getSocketServer().android.sendall("caca")
+def prueba(request):
+    AndroidView.server_socket.send_update()
+    return HttpResponse()
 
 def home(request):
-    if is_android(request):
+    if is_studio_app(request):
         return redirect('connect')
     else:
         return redirect('studio')
-
-def export(needsExport=True):
-    if needsExport:
-        export_to_json(get_blender_exe().get_abspath(), get_blender_file().get_abspath())
-        get_blender_file().export()
-    con = get_android_connection()
-    con.update(load_json(get_blender_file().get_json_abspath()))
-
-def export_mrr(needsExport=True):
-    if needsExport:
-        export_to_mrr(get_blender_exe().get_abspath() , get_blender_file().get_abspath())
-        get_blender_file().export_mrr()
-    con = get_android_connection()
-    con.update_mrr(load_mrr(get_blender_file().get_mrr_abspath()))
-
-
 
 class Studio(View):
     blender_exe = BlenderExe()
@@ -47,7 +26,7 @@ class Studio(View):
 
     def get_base_context(self):
         context = dict()
-        context['connected'] = getSocketServer().android is not None
+        context['connected'] = AndroidView.server_socket.android is not None
         context['ip'] = get_ip()
         return context
 
@@ -56,6 +35,7 @@ class Studio(View):
             utils.export_to_mrr(Studio.blender_exe.file_path, Studio.blender_file.file_path)
             Studio.mrr_file.setFile(Studio.blender_file.dir_path, Studio.blender_file.get_file_base_name()+".mrr")
             Studio.mrr_file.export()
+        AndroidView.server_socket.send_update()
         #con = get_android_connection()
         #con.update_mrr(load_mrr(get_blender_file().get_mrr_abspath()))
 
@@ -87,6 +67,7 @@ class Studio(View):
             self.export()
             return redirect("json-tools")
         elif 'upload' in request.POST:
+            self.export(needsExport=False)
             return redirect("json-tools")
         elif 'save' in request.POST:
             #save_json(get_blender_file().get_json_abspath(), request.POST['json'])
@@ -111,32 +92,23 @@ class Studio(View):
 
     def get_blender_config(self,request):
         context = self.get_base_context()
-        dir = Studio.blender_exe_explorer.dir_path
+        dir_path = Studio.blender_exe_explorer.dir_path
         context['current'] = Studio.blender_exe.file_path
-        try:
-            dir = get_directory(dir)
-            context['dirname'] = dir[0]
-            context['folders'] = dir[1]
-            context['files'] = file_filter(dir[2],".exe")
-        except:
-            context['dirname'] = get_blender_search_dir()
-            context['folders'] = []
-            context['files'] = []
+        list_dir = get_directory(dir_path)
+        context['dirname'] = list_dir[0]
+        context['folders'] = list_dir[1]
+        context['files'] = file_filter(list_dir[2],".exe")
         return TemplateResponse(request, "blender-config.html", context=context)
 
     def get_blender_file(self, request):
         context = self.get_base_context()
         dir_path = Studio.blender_file_explorer.dir_path
         context['current'] = Studio.blender_file.file_path
-        try:
-            dir = get_directory(dir_path)
-            context['dirname'] = dir[0]
-            context['folders'] = dir[1]
-            context['files'] = file_filter(dir[2],".blend")
-        except:
-            context['dirname'] = dir_path
-            context['folders'] = []
-            context['files'] = []
+        print(dir_path)
+        list_dir = get_directory(dir_path)
+        context['dirname'] = list_dir[0]
+        context['folders'] = list_dir[1]
+        context['files'] = file_filter(list_dir[2],".blend")
         return TemplateResponse(request, "blender-file.html", context=context)
 
     def get_json_tools(self, request):
@@ -148,9 +120,8 @@ class Studio(View):
         return TemplateResponse(request, "json-tools.html", context=context)
 
     def get(self, request):
-        con = get_android_connection()
         context = dict()
-        context['connected'] = getSocketServer().android is not None
+        context['connected'] = AndroidView.server_socket.android is not None
         context['ip'] = get_ip()
         path = request.path.replace('/','')
         if path == "studio":
@@ -168,94 +139,36 @@ class Studio(View):
 
 
 
-class AndroidView2(View):
+class AndroidView(View):
+    server_socket = AndroidTCPServer()
 
     def connect(self, request):
-        return HttpResponse(status=201)
-
-    def android_update(self, request):
-        file_full_path = Studio.mrr_file.file_path
-        with open(file_full_path,'rb') as f:
-            data = f.read()
-        print Studio.mrr_file.file_path
-        response = HttpResponse(data, status=201, content_type=mimetypes.guess_type(file_full_path)[0])
-        response['Content-Disposition'] = "attachment; filename={0}".format(Studio.mrr_file.file)
-        response['Content-Length'] = os.path.getsize(file_full_path)
+        response = HttpResponse(status=200)
+        response['server_socket_port'] = settings.SERVER_SOCKET_PORT
         return response
 
+    def disconnect(self, request):
+        return HttpResponse(status=200)
+
+    def android_update(self, request):
+        #file_full_path = Studio.mrr_file.file_path
+        #with open(file_full_path,'rb') as f:
+        #    data = f.read()
+        #print Studio.mrr_file.file_path
+        #response = HttpResponse(data, status=201, content_type=mimetypes.guess_type(file_full_path)[0])
+        #response['Content-Disposition'] = "attachment; filename={0}".format(Studio.mrr_file.file)
+        #response['Content-Length'] = os.path.getsize(file_full_path)
+        return FileResponse(open(Studio.mrr_file.file_path,'rb'))
+
     def get(self, request):
-        #if not utils.is_android(request):
-        #    return HttpResponse(403)
+        #if not utils.is_studio_app(request):
+        #    return HttpResponse(status=403)
         path = request.path.replace('/','')
         if path == "connect":
             return self.connect(request)
+        elif path == "disconnect":
+            return self.disconnect(request)
         elif path == "android-update":
             return self.android_update(request)
         else:
             return HttpResponse(404)
-
-
-
-
-class AndroidView(View):
-
-    def connect(self, request):
-        if not is_android(request):
-            return HttpResponse(403)
-        con = get_android_connection()
-        con.connect(get_user_agent(request))
-        return HttpResponse(status=201)
-
-    def disconnect(self, request):
-        if not is_android(request):
-            return HttpResponse(403)
-        con = get_android_connection()
-        con.disconnect()
-        return HttpResponse(status=201)
-
-    def wait_update(self, request):
-        if not is_android(request):
-            return HttpResponse(403)
-        con = get_android_connection()
-        con.connect(get_user_agent(request))
-        while not con.updated: None
-        #con.disconnect()
-        con.updated = False
-        return con.response
-
-    def export(self, needsExport=True):
-        if needsExport:
-            export_to_json(get_blender_exe().get_abspath(), get_blender_file().get_abspath())
-            get_blender_file().export()
-        con = get_android_connection()
-        con.update(load_json(get_blender_file().get_json_abspath()))
-
-    def fast_update2(self, request):
-        if not is_android(request):
-            return HttpResponse(403)
-        con = get_android_connection()
-        con.connect(get_user_agent(request))
-        export(needsExport=False)
-        #con.disconnect()
-        con.updated = False
-        return con.response
-
-    def fast_update(self, request):
-        con = get_android_connection()
-        con.connect(get_user_agent(request))
-        export_mrr(needsExport=False)
-        con.updated = False
-        return con.response
-
-
-
-    def get(self, request):
-        if request.path == "/connect/":
-            return self.connect(request)
-        elif request.path == "/disconnect/":
-            return self.disconnect(request)
-        elif request.path == "/android-update/":
-            return self.wait_update(request)
-        elif request.path == "/fast-update/":
-            return self.fast_update(request)
-

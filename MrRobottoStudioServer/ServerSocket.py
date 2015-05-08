@@ -1,12 +1,8 @@
 import SocketServer
-from django.apps import AppConfig
 import threading
 
-class ServerSocketConfig(AppConfig):
-    name = 'MrRobottoStudioServer'
-    verbose_name = "ServerSocket"
-    def ready(self):
-        AppConfig.ready(self)
+import utils
+import settings
 
 
 class MyTCPHandler(SocketServer.StreamRequestHandler):
@@ -36,10 +32,17 @@ class MyTCPHandler(SocketServer.StreamRequestHandler):
         print "Finish"
         self.server.android = None
 
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    def __init__(self, server_address):
-        SocketServer.TCPServer.__init__(self,server_address, MyTCPHandler)
+class AndroidTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    def __init__(self):
+        SocketServer.TCPServer.__init__(self,(utils.get_ip(), settings.SERVER_SOCKET_PORT), MyTCPHandler)
         self.android = None
+        self.server_thread = threading.Thread(target=self.serve_forever)
+        # Exit the server thread when the main thread terminates
+        self.server_thread.daemon = True
+        self.server_thread.start()
+    def send_update(self):
+        if self.android:
+            self.android.sendall("UPDT")
 
 HOST, PORT = "0.0.0.0", 8001
 server = None
@@ -51,7 +54,7 @@ def getSocketServer():
 def runServerSocket():
     global server
     if server is None:
-        server = ThreadedTCPServer((HOST, PORT))
+        server = AndroidTCPServer((HOST, PORT))
         # Start a thread with the server -- that thread will then start one
         # more thread for each request
         server_thread = threading.Thread(target=server.serve_forever)

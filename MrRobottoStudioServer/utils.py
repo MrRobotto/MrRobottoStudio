@@ -1,19 +1,21 @@
 import os
+import re
 import subprocess
 import struct
+
 from MrRobottoStudioServer import settings
 
 
-def is_android(request):
+def is_studio_app(request):
     ua = get_user_agent(request)
     ua = ua.lower()
-    return "android" in ua
+    return "mrrobotto" in ua
 
 def get_user_agent(request):
     return request.META['HTTP_USER_AGENT']
 
 def file_filter(files, ext):
-    return [f for f in files if ext in f]
+    return [f for f in files if re.match(r".*."+ext+'$',f)]
 
 def get_ip():
     import socket
@@ -31,12 +33,8 @@ def get_abs_path(dir, file=None):
         return os.path.abspath(dir)
     return None
 
-def export_to_json(blender, file):
-    script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter3')
-    subprocess.call([blender, file, '--background','--python',script])
-
 def export_to_mrr(blender, file):
-    script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter3')
+    script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter.py')
     subprocess.call([blender, file, '--background','--python',script])
 
 def save_json(filepath, json):

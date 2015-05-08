@@ -53,6 +53,7 @@ ROOT_URLCONF = 'MrRobottoStudioServer.urls'
 
 WSGI_APPLICATION = 'MrRobottoStudioServer.wsgi.application'
 
+SERVER_SOCKET_PORT = 8001
 
 # Database
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
@@ -84,18 +85,6 @@ TEMPLATE_DIRS = (
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 
-"""STATIC_ROOT = os.path.join(BASE_DIR, 'templates/../static')
-STATIC_URL = '/static/'
-
-TEMPLATE_DIRS = (
-    os.path.join(BASE_DIR,  'templates'),
-)
-
-STATICFILES_DIRS = (
-    os.path.join(STATIC_ROOT, 'static'),
-)"""
-
-#STATIC_ROOT = ''
 STATIC_ROOT = BASE_DIR
 
 STATIC_URL = '/static/'

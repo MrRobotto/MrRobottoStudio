@@ -1,14 +1,14 @@
+import os
+import json
+import threading
+import struct
+
 import bpy
 import bpy.path
 import bmesh
-import os
-import math
-import json
-import mathutils
-import threading
-import struct
 from mathutils import *
 import bpy.types
+
 
 D = bpy.data
 C = bpy.context
@@ -1028,7 +1028,7 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
         self.src += "\tgl_Position = " + NAME_MVP + " * " + "vec4(" + NAME_VERTEX +",1);\n"
     def genBoneApplyMVPVertex(self):
         self.src += "\tvec3 pos = applyBones();\n"
-        self.src += "\tgl_Position = " + NAME_MVP + " * " + "vec4(pos, 1);\n"
+        self.src += "\tgl_Position = " + NAME_MVP + " * "+ "vec4(pos, 1);\n"
 
     def genSimpleVertexShader(self):
         self.genHeaders()
@@ -1175,7 +1175,7 @@ class MeshExporter:
         self.outMesh.addKey(NormalKey())
     def addMaterialKey(self):
         """Add material key if we have materials"""
-        if (len(self.meshOb.material_slots) > 1):
+        if (len(self.meshOb.material_slots) > 0):
             self.outMesh.addKey(MaterialKey())
     def addUVKey(self):
         """Add UV coordinates if we have textures"""
@@ -1216,7 +1216,7 @@ class MeshExporter:
         for group in groups:
             if group.index in dvert:
                 weight = dvert[group.index]
-                if (abs(weight) > PRECISSION):
+                if (abs(weight) > PRECISSION and count < NUM_BONES_PERVERTEX):
                     w[count] = weight
                     #i[count] = group.index
                     i[count] = self.boneAligner.getIndexOf(group.name)
@@ -1286,8 +1286,6 @@ class MeshExporter:
                     if v[i+j]>=0:
                         v[i+j] = remap[int(v[i+j])]
     def fixFaceIndices(self, geom):
-        print(len(geom.indices))
-        print(len(self.bm.verts))
         if not len(self.bm.verts) > len(geom.indices):
             return
         vertices = geom.vertices
@@ -1327,6 +1325,7 @@ class MeshExporter:
         l = list(materialSet)
         l.sort()
         self.outMesh._materialIndices = l
+        print(materialSet)
         if -1 in boneIndices:
             boneIndices.remove(-1)
         l = list(boneIndices)
@@ -1409,6 +1408,7 @@ class MaterialsExporter:
         #si tiene una textura o no asociada
         indices = self.model.Mesh.getMaterialIndices()
         for index in indices:
+            print(index)
             material_slot = self.ob.material_slots[index]
             mat = material_slot.material
             name = mat.name
@@ -1419,6 +1419,7 @@ class MaterialsExporter:
             material = Material(name, diffuse, specular, ambient, texture)
             self.outMaterials.addMaterial(material)
 
+meshOb = None
 class ModelExporter:
     def __init__(self, meshOb, outModel):
         self.meshOb = meshOb
@@ -1446,6 +1447,8 @@ class ModelExporter:
         materials = self.outModel.Materials
         if materials is not None:
             numMat = len(materials)
+            print(numMat)
+            print(materials)
             keys.addUniformKey(MaterialAmbientColorKey(numMat))
             keys.addUniformKey(MaterialAmbientIntensityKey(numMat))
             keys.addUniformKey(MaterialDiffuseColorKey(numMat))
@@ -1463,6 +1466,8 @@ class ModelExporter:
             bones = mesh.getBoneIndices()
             keys.addUniformKey(BoneMatrixKey(len(bones)))
     def export(self):
+        global meshOb
+        meshOb = self.meshOb
         self.setName()
         skeletonOb = self.getSkeleton()
         if skeletonOb is not None:
@@ -1521,9 +1526,14 @@ class SkeletonPoseExporter:
         self.poseBones = poseBones
         self.outSkeleton = outSkeleton
     def export(self):
+        global meshOb
+        wm2 = self.skeletonOb.matrix_world
+        wm = meshOb.matrix_world
         for pbone in self.poseBones:
             b = None
-            m = pbone.matrix_channel
+            #m = pbone.matrix_channel
+            #m = wm.inverted() * wm2* pbone.matrix*pbone.bone.matrix_local.inverted()* wm2.inverted() * wm
+            m = wm.inverted() * wm2* pbone.matrix*pbone.bone.matrix_local.inverted()* wm2.inverted() * wm
             q = m.to_quaternion()
             q.normalize()
             s = mround(m.to_scale())
