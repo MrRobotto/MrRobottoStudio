@@ -74,6 +74,8 @@ class FileData:
         save_to_settings(self)
     def get_file_base_name(self):
         return self.file.split('.')[0]
+    def __repr__(self):
+        return self.file
 
 class BlenderExe(FileData):
     def __init__(self, dir=None, f=None):

@@ -22,23 +22,22 @@
         </div>
     {% endif %}
 
-    {% if con.connected %}
+    {% if current_mrr and connected %}
         <div class="row">
             <div class="col-md-12 alert alert-success">
                 <form class="form-inline" method="post">
                     <button type="submit" name="upload" class="btn btn-default">Upload</button>
-                    Current JSON file: <b>{{ current_json }}</b>
+                    Current MRR file: <b>{{ current_mrr }}</b>
                     {% csrf_token %}
                 </form>
             </div>
         </div>
     {% endif %}
-
     {% if current_mrr %}
         <div class="row">
             <div class="col-lg-12">
                 <div class="row">
-                    <form id="saveform" method="post">
+                    <form id="exportform" method="post">
                         <button type="submit" name="save" class="btn btn-success">Save changes</button>
                         {% csrf_token %}
                     </form>

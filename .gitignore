@@ -2,3 +2,5 @@
 *.blend1
 *.mrr
 *.json
+/.idea
+*.pyc
