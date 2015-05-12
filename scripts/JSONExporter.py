@@ -85,6 +85,10 @@ UNIFORM_MATERIAL_SPECULAR_COLOR = "Specular_Color"
 UNIFORM_MATERIAL_SPECULAR_INTENSITY = "Specular_Intensity"
 UNIFORM_BONE_MATRIX = "Bone_Matrix"
 UNIFORM_TEXTURE = "Texture_Sampler"
+UNIFORM_LIGHT_POSITION = "Light_Position"
+UNIFORM_LIGHT_COLOR = "Light_Color"
+UNIFORM_LIGHT_POSITION_ARRAY = "Light_Position_Array"
+UNIFORM_LIGHT_COLOR_ARRAY = "Light_Color_Array"
 
 NAME_MVP = "mvpMatrix"
 NAME_MODEL = "modelMatrix"
@@ -98,6 +102,11 @@ NAME_MATERIAL_SPECULAR_COLOR = "specular_color"
 NAME_MATERIAL_SPECULAR_INTENSITY = "specularInt"
 NAME_BONE_MATRIX = "bones"
 NAME_TEXTURE_SAMPLER = "mrtexture"
+NAME_LIGHT_POSITION = "mrLightPosition"
+NAME_LIGHT_COLOR = "mrLightColor"
+NAME_LIGHT_POSITION_ARRAY = "mrLightsPosition"
+NAME_LIGHT_COLOR_ARRAY = "mrLightsColor"
+
 
 MESHDICT_FACENAME = "Faces"
 MESHDICT_EDGESNAME = "Edges"
@@ -133,6 +142,9 @@ TEXMINFILTER_NEAREST_NEAREST = "Nearest_Nearest"
 TEXMINFILTER_NEAREST_LINEAR = "Nearest_Linear"
 TEXMINFILTER_LINEAR_LINEAR = "Linear_Linear"
 TEXMINFILTER_LINEAR_NEAREST = "Linear_Nearest"
+
+LIGHTTYPE_SPOT = "Spot"
+LIGHTTYPE_POINT = "Point"
 
 DEFAULT_TEXTURE_INDEX = 1
 
@@ -536,13 +548,17 @@ class MaterialList:
         yield from self.Materials
 
 class Texture:
-    def __init__(self, name, minFilter=TEXMINFILTER_NEAREST_LINEAR, magFilter=TEXMAGFILTER_LINEAR, index=DEFAULT_TEXTURE_INDEX):
+    def __init__(self, name, minFilter=TEXMINFILTER_NEAREST_LINEAR, magFilter=TEXMAGFILTER_LINEAR, index=DEFAULT_TEXTURE_INDEX, path=None):
         self.Name = name
         self.MinFilter = minFilter
         self.MagFilter = magFilter
         self.Index = index
+        #Remove from export
+        self.path = path
     def __iter__(self):
-        yield from self.__dict__.items()
+        d = self.__dict__.copy()
+        d.pop('path')
+        yield from d.items()
 
 
 
@@ -719,16 +735,39 @@ class SceneObjectsList:
     def __init__(self):
         self.SceneObjects = []
         self.Hierarchy = Hierarchy()
+        #Remove from exporting
+        self.byType = dict()
+        self.textures = dict()
+    def getByType(self, typ):
+        if typ in self.byType:
+            return self.byType[typ]
+        return []
+    def addTexture(self, texture):
+        self.textures[texture.Name] = texture
+    def getTextures(self):
+        return self.textures
     def __addChildTo(self, child, parent=None):
         if parent != None:
             self.Hierarchy.addChildTo(child.Name, parent.Name)
         else:
             self.Hierarchy.addChildTo(child.Name)
     def addSceneObj(self, obj, parent=None):
-        self.SceneObjects.append(obj)
         self.__addChildTo(obj,parent)
+        self.SceneObjects.append(obj)
+        if obj.Type in self.byType:
+            self.byType[obj.Type].append(obj)
+        else:
+            self.byType[obj.Type] = list()
+            self.byType[obj.Type].append(obj)
+        if obj.Type == SCENEOBJTYPE_MODEL:
+            for mat in obj.Materials:
+                if mat.hasTexture():
+                    self.textures[mat.Texture.Name] = mat.Texture.path
     def __iter__(self):
-        yield from self.__dict__.items()
+        d = self.__dict__.copy()
+        d.pop('byType')
+        d.pop('textures')
+        yield from d.items()
 
 
 class VertexAttribute(Attribute):
@@ -831,6 +870,21 @@ class TextureSampler(Uniform):
     def __init__(self,count=1):
         Uniform.__init__(self, UNIFORM_TEXTURE, NAME_TEXTURE_SAMPLER, count, DATATYPE_SAMPLER2D)
 
+class LightPosition(Uniform):
+    def __init__(self):
+        Uniform.__init__(self, UNIFORM_LIGHT_POSITION, NAME_LIGHT_POSITION, 1, DATATYPE_VEC4)
+
+class LightColor(Uniform):
+    def __init__(self):
+        Uniform.__init__(self, UNIFORM_LIGHT_COLOR, NAME_LIGHT_COLOR, 1, DATATYPE_VEC4)
+
+class LightsPositionArray(Uniform):
+    def __init__(self,count=1):
+        Uniform.__init__(self, UNIFORM_LIGHT_POSITION_ARRAY, NAME_LIGHT_POSITION_ARRAY, count, DATATYPE_VEC4)
+
+class LightsColorArray(Uniform):
+    def __init__(self,count=1):
+        Uniform.__init__(self, UNIFORM_LIGHT_COLOR_ARRAY, NAME_LIGHT_COLOR_ARRAY, count, DATATYPE_VEC4)
 
 
 class MVPUniformKey(UniformKey):
@@ -881,6 +935,22 @@ class TextureSamplerKey(UniformKey):
     def __init__(self, count=1):
         UniformKey.__init__(self, UNIFORM_TEXTURE, RENDERING_LEVEL_OBJECT, count)
 
+class LightPositionKey(UniformKey):
+    def __init__(self,count=1):
+        UniformKey.__init__(self, UNIFORM_LIGHT_POSITION, RENDERING_LEVEL_OBJECT, count)
+
+class LightColorKey(UniformKey):
+    def __init__(self,count=1):
+        UniformKey.__init__(self, UNIFORM_LIGHT_COLOR, RENDERING_LEVEL_OBJECT, count)
+
+class LightsPositionArrayKey(UniformKey):
+    def __init__(self,count=1):
+        UniformKey.__init__(self, UNIFORM_LIGHT_POSITION_ARRAY, RENDERING_LEVEL_SCENE, count)
+
+class LightsColorArrayKey(UniformKey):
+    def __init__(self,count=1):
+        UniformKey.__init__(self, UNIFORM_LIGHT_COLOR_ARRAY, RENDERING_LEVEL_SCENE, count)
+
 
 
 def getAttributeFromAttributeKey(attrib):
@@ -922,6 +992,14 @@ def getUniformFromUniformKey(uniform):
         return BoneMatrix(uniform.Count)
      if isinstance(uniform,TextureSamplerKey):
          return TextureSampler(uniform.Count)
+     if isinstance(uniform,LightColorKey):
+         return LightColor()
+     if isinstance(uniform,LightPositionKey):
+         return LightPosition()
+     if isinstance(uniform,LightsPositionArrayKey):
+         return LightsPositionArray(uniform.Count)
+     if isinstance(uniform,LightsColorArrayKey):
+         return LightsColorArray(uniform.Count)
 
 
 
@@ -1397,8 +1475,7 @@ class MaterialsExporter:
                 if image.name == activeTextureName:
                     path = image.filepath_from_user()
                     if os.path.exists(path):
-                        Exporter.textures[activeTextureName] = path
-                        t=Texture(activeTextureName,index=self.textureIndex)
+                        t=Texture(activeTextureName,index=self.textureIndex,path=path)
                         self.textureIndex+=1
                         return t
         except:
@@ -1408,7 +1485,6 @@ class MaterialsExporter:
         #si tiene una textura o no asociada
         indices = self.model.Mesh.getMaterialIndices()
         for index in indices:
-            print(index)
             material_slot = self.ob.material_slots[index]
             mat = material_slot.material
             name = mat.name
@@ -1475,7 +1551,7 @@ class ModelExporter:
             self.boneAligner = BoneIndicesAligner(skeletonOb)
             MeshExporter(self.meshOb, self.outModel.Mesh,self.boneAligner).export()
             poseBones = [skeletonOb.pose.bones[i] for i in self.outModel.Mesh.getBoneIndices()]
-            SkeletonExporter(skeletonOb, self.outModel.Skeleton, poseBones, self.boneAligner).export()
+            SkeletonExporter(skeletonOb, self.meshOb, self.outModel.Skeleton, poseBones, self.boneAligner).export()
         else:
             MeshExporter(self.meshOb, self.outModel.Mesh).export()
         TransformExporter(self.meshOb, self.outModel.Transform).export()
@@ -1521,14 +1597,14 @@ class CameraExporter:
 
 
 class SkeletonPoseExporter:
-    def __init__(self, skeletonOb, poseBones, outSkeleton):
+    def __init__(self, skeletonOb, meshOb, poseBones, outSkeleton):
         self.skeletonOb = skeletonOb
+        self.meshOb = meshOb
         self.poseBones = poseBones
         self.outSkeleton = outSkeleton
     def export(self):
-        global meshOb
         wm2 = self.skeletonOb.matrix_world
-        wm = meshOb.matrix_world
+        wm = self.meshOb.matrix_world
         for pbone in self.poseBones:
             b = None
             #m = pbone.matrix_channel
@@ -1544,10 +1620,11 @@ class SkeletonPoseExporter:
             self.outSkeleton.append(b)
 
 class SingleSkeletalActionExporter:
-    def __init__(self, actionOb, skeletonOb, poseBones, outAction):
+    def __init__(self, actionOb, skeletonOb, meshOb, poseBones, outAction):
         self.actionOb = actionOb
         self.outAction = outAction
         self.skeletonOb = skeletonOb
+        self.meshOb = meshOb
         self.poseBones = poseBones
         self.originalKeyFrame = bpy.context.scene.frame_current
         self.originalAction = self.skeletonOb.animation_data.action
@@ -1587,7 +1664,7 @@ class SingleSkeletalActionExporter:
             self.setKeyFrame(kfi)
             frame = Frame(kfi)
             bones = []
-            SkeletonPoseExporter(self.skeletonOb, self.poseBones, bones).export()
+            SkeletonPoseExporter(self.skeletonOb, self.meshOb, self.poseBones, bones).export()
             for bone in bones:
                 frame.addBone(bone)
             self.outAction.addKeyFrame(frame)
@@ -1602,8 +1679,9 @@ class SingleSkeletalActionExporter:
 
 
 class SkeletalActionsExporter:
-    def __init__(self, skeletonOb, poseBones, outActions):
+    def __init__(self, skeletonOb, meshOb, poseBones, outActions):
         self.skeletonOb = skeletonOb
+        self.meshOb = meshOb
         self.poseBones = poseBones
         self.outActions = outActions
     def actionBoneNames(self, action):
@@ -1648,8 +1726,9 @@ class SkeletalActionsExporter:
             #self.outActions.append(action)
 
 class SkeletonExporter:
-    def __init__(self, skeletonOb, outSkeleton, poseBones, boneAligner):
+    def __init__(self, skeletonOb, meshOb, outSkeleton, poseBones, boneAligner):
         self.skeletonOb = skeletonOb
+        self.meshOb = meshOb
         self.poseBones = poseBones
         self.outSkeleton = outSkeleton
         self.actions = None
@@ -1671,23 +1750,16 @@ class SkeletonExporter:
         self.outSkeleton.setRootBone(root)
     def getSkeletonPose(self):
         bones = []
-        SkeletonPoseExporter(self.skeletonOb,self.poseBones, bones).export()
+        SkeletonPoseExporter(self.skeletonOb, self.meshOb, self.poseBones, bones).export()
         self.outSkeleton.Pose = bones
     def getBoneOrder(self):
         for pbone in self.poseBones:
             self.outSkeleton.BoneOrder.append(pbone.name)
-        #boneIndices = []
-        #for pbone in self.skeletonOb.pose.bones:
-        #    boneIndex = BoneIndex(pbone.name, self.boneAligner.getIndexOf(pbone.name))
-        #    boneIndices.append(boneIndex)
-        #boneIndices.sort()
-        #for boneIndex in boneIndices:
-        #    self.outSkeleton.BoneOrder.append(boneIndex.Name)
     def export(self):
         self.getBoneHierarchy()
         self.getBoneOrder()
         self.getSkeletonPose()
-        SkeletalActionsExporter(self.skeletonOb, self.poseBones, self.outSkeleton.Actions).export()
+        SkeletalActionsExporter(self.skeletonOb, self.meshOb, self.poseBones, self.outSkeleton.Actions).export()
 
 
 class Light(SceneObj):
@@ -1696,15 +1768,75 @@ class Light(SceneObj):
         self.LightType = None
         self.Color = None
 
+class PointLight(Light):
+    def __init__(self):
+        Light.__init__(self)
+        self.LinearAttenuation = None
+        self.QuadraticAttenuation = None
+
+class SpotLight(Light):
+    def __init__(self):
+        Light.__init__(self)
+        self.LinearAttenuation = None
+        self.QuadraticAttenuation = None
+        self.SpotSize = None
+
+class LightExporter:
+    def __init__(self, lightOb, outLight):
+        self.lightOb = lightOb
+        self.light = lightOb.data
+        self.outLight = outLight
+    def getName(self):
+        self.outLight.Name = self.lightOb.name
+    def getLightType(self):
+        typ = self.light.type
+        if typ == 'SPOT':
+            self.outLight.LightType = LIGHTTYPE_SPOT
+        elif typ == 'POINT':
+            self.outLight.LightType = LIGHTTYPE_POINT
+    def getColor(self):
+        self.outLight.Color = self.light.color
+    def getAttenuations(self):
+        self.outLight.LinearAttenuation = self.light.linear_attenuation
+        self.outLight.QuadraticAttenuation = self.light.quadratic_attenuation
+    def getSpotSize(self):
+        self.outLight.SpotSize = self.light.spot_size
+    def exportPointLight(self):
+        self.getAttenuations()
+    def exportSpotLight(self):
+        self.getAttenuations()
+        self.getSpotSize()
+    def setUniformKeys(self):
+        keys = self.outLight.UniformKeys
+        keys.addUniformKey(LightPositionKey())
+        keys.addUniformKey(LightColorKey())
+    def export(self):
+        self.getLightType()
+        self.getName()
+        self.getColor()
+        if self.outLight.LightType == LIGHTTYPE_POINT:
+            self.exportPointLight()
+        elif self.outLight.LightType == LIGHTTYPE_SPOT:
+            self.exportPointLight()
+        TransformExporter(self.lightOb, self.outLight.Transform).export()
+        self.setUniformKeys()
 
 
 
 class SceneExporter:
     def __init__(self, outScene):
         self.outScene = outScene
+    def setLightsUniformKeys(self):
+        keys = self.outScene.UniformKeys
+        lights = Exporter.sceneObjectsList.getByType(SCENEOBJTYPE_LIGHT)
+        if len(lights) == 0:
+            return
+        keys.addUniformKey(LightsPositionArrayKey(len(lights)))
+        keys.addUniformKey(LightsColorArrayKey(len(lights)))
     def setUniformKeys(self):
         keys = self.outScene.UniformKeys
         keys.addUniformKey(MVPUniformKey())
+        self.setLightsUniformKeys()
     def export(self):
         self.setUniformKeys()
 
@@ -1714,7 +1846,6 @@ class SceneObjectsListExporter:
         self.outList = outList
     def export(self):
         scene = Scene()
-        SceneExporter(scene).export()
         self.outList.addSceneObj(scene)
         meshes = []
         for obj in self.sceneObjs:
@@ -1724,10 +1855,15 @@ class SceneObjectsListExporter:
                 camera = Camera()
                 CameraExporter(obj, camera).export()
                 self.outList.addSceneObj(camera, scene)
+            #elif (obj.type == 'LAMP'):
+            #    light = Light()
+            #    LightExporter(obj, light).export()
+            #    self.outList.addSceneObj(light, scene)
         for obj in meshes:
             model = Model()
             ModelExporter(obj, model).export()
             self.outList.addSceneObj(model, scene)
+        SceneExporter(scene).export()
 
 
 def prettyPrintJSON(scene):
@@ -1797,11 +1933,11 @@ def writeToFile2(filename, json, textures):
 class SceneJSONEncoder(json.JSONEncoder):
     def default(self,obj):
         #All elements in listTypes will be serialized as lists
-        listTypes = (Vertex,AttributeKeyList,Vector,Quaternion,Matrix,AttributeList,UniformList, MaterialList, UniformKeyList)
+        listTypes = (Vertex,AttributeKeyList,Vector,Quaternion,Matrix,AttributeList,UniformList, MaterialList, UniformKeyList,Color)
         #All elements in dictTypes will be serialized as dicts
         dictTypes = [AttributeKey, Mesh, Model, Transform, Scene, Camera, Lens, ShaderProgram, Attribute, UniformKey]
         dictTypes += [Uniform, SceneObjectsList, Hierarchy, HierarchyObject, Material, MaterialLight,Texture, Action, Skeleton]
-        dictTypes += [Frame, PoseBone, Bone, BoneIndex]
+        dictTypes += [Frame, PoseBone, Bone, BoneIndex, Light]
         dictTypes = tuple(dictTypes)
         if isinstance(obj,dictTypes):
             return dict(obj)
@@ -1812,7 +1948,6 @@ class SceneJSONEncoder(json.JSONEncoder):
 
 class Exporter:
     sceneObjectsList = SceneObjectsList()
-    textures = dict()
 
     def __init__(self):
         #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
@@ -1825,6 +1960,6 @@ class Exporter:
         #writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
         #writeToFile(self.filename + EXT, sceneJson)
         #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
-        writeToFile2(self.filename + '.mrr', sceneJson, Exporter.textures)
+        writeToFile2(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
 
 Exporter().export()
