@@ -6,7 +6,7 @@ import json
 
 SETTINGS_FILE = "settings.json"
 
-def save_to_settings(obj):
+def save_to_settings(obj, dictionary=None):
     try:
         f = open(SETTINGS_FILE)
     except:
@@ -18,7 +18,10 @@ def save_to_settings(obj):
     except:
         d = dict()
     f.close()
-    d[obj.__class__.__name__] = obj.__dict__
+    if dictionary is not None:
+        d[obj.__class__.__name__] = dictionary
+    else:
+        d[obj.__class__.__name__] = obj.__dict__
     f = open(SETTINGS_FILE,"w")
     f.write(json.dumps(d))
     f.close()
@@ -114,8 +117,22 @@ class MRRFile(FileData):
         FileData.__init__(self, dir, f)
         if not 'exported' in self.__dict__:
             self.exported = False
+            self.last_modification = None
+        self.json = None
+        self.textures = None
     def export(self):
         self.exported = True
-        save_to_settings(self)
-    def decode(self):
-        return utils.decode_mrr(self.file_path)
+        self.json, self.textures = utils.decode_mrr(self.file_path)
+        self.last_modification = utils.get_modification_time(self.file_path)
+        d = self.__dict__.copy()
+        d.pop('json')
+        d.pop('textures')
+        save_to_settings(self, d)
+    def get_json(self):
+        if not self.last_modification == utils.get_modification_time(self.file_path) or self.json is None:
+            self.export()
+        return self.json
+    def get_textures(self):
+        if not self.last_modification == utils.get_modification_time(self.file_path) or self.textures is None:
+            self.export()
+        return self.textures

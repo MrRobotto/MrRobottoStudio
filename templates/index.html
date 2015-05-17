@@ -15,15 +15,12 @@
 
                 <div class="row">
                     <div class="col-lg-12">
-                        {% if not connected %}
-                        <div class="alert alert-danger">
+                        <div id="disconnected-panel" class="alert alert-danger">
                                 There is no online devices right now
                         </div>
-                        {% else %}
-                        <div class="alert alert-success">
-                                Device connected with UA: <b>{{ con.ua }}</b>
+                        <div id="connected-panel" class="alert alert-success">
+                                Device connected
                         </div>
-                        {% endif %}
                     </div>
                 </div>
                 <!-- /.row -->
@@ -68,3 +65,21 @@
                 </div>
     {% endblock %}
 
+    {% block script-block %}
+        <script type="text/javascript">
+            var pageScript = function(value) {
+                if (value == false) {
+                    $("#disconnected-panel").show();
+                    $("#connected-panel").hide();
+                } else {
+                    $("#disconnected-panel").hide();
+                    $("#connected-panel").show();
+                }
+            };
+            {% if connected %}
+                pageScript(true);
+            {% else %}
+                pageScript(false);
+            {% endif %}
+        </script>
+    {% endblock %}

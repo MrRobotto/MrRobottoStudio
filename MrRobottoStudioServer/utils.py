@@ -1,4 +1,5 @@
 import os
+import time
 import re
 import subprocess
 import struct
@@ -42,17 +43,8 @@ def save_json(filepath, json):
     f.write(json)
     f.close()
 
-def load_json(filename):
-    if filename:
-        f = open(filename)
-        o = f.read()
-        return o.replace('"','\"')
-
-def load_mrr(filename):
-    if filename:
-        f = open(filename, "rb")
-        o = f.read()
-        return o
+def get_modification_time(f):
+    return time.ctime(os.path.getmtime(f))
 
 def decode_mrr(filename):
     f = open(filename, "rb")
