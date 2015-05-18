@@ -14,9 +14,9 @@ urlpatterns = patterns('',
     url(r'^studio/blender-file', Studio.as_view(), name='blender-file'),
     url(r'^studio/json-tools', Studio.as_view(), name='json-tools'),
 
-    url(r'^connect', AndroidView.as_view(), name='connect'),
-    url(r'^disconnect', AndroidView.as_view(), name='disconnect'),
-    url(r'^android-update', AndroidView.as_view(), name='update'),
+    url(r'^android/connect', AndroidView.as_view(), name='connect'),
+    url(r'^android/disconnect', AndroidView.as_view(), name='disconnect'),
+    url(r'^android/update', AndroidView.as_view(), name='update'),
 
     url(r'^services/is-connected', ServicesView.as_view(), name='is-connected'),
     url(r'^services/textures', ServicesView.as_view(), name="textures"),

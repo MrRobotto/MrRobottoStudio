@@ -126,12 +126,21 @@
 
     <script type="text/javascript">
 
-        (function poll(){
+        /*(function poll(){
             setInterval(function() {
-                $.ajax({ url: "/services/is-connected", timeout:1000, success: function(data){
+                $.ajax({ url: "/services/is-connected", timeout:30000, success: function(data){
                   $("#android-connected").text(data.value);
                   pageScript(data.value);
                 }, dataType: "json"});
+            }, 1000);
+        })();*/
+
+        (function poll() {
+           setTimeout(function() {
+               $.ajax({ url: "/services/is-connected", success: function(data) {
+                  $("#android-connected").text(data.value);
+                  pageScript(data.value);
+               }, dataType: "json", complete: poll });
             }, 1000);
         })();
     </script>

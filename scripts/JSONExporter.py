@@ -1225,8 +1225,9 @@ class ShaderGenerator:
         return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.uniforms.values(), vs, fs)
 
 class ShaderConfigurer:
-    def __init__(self,obj):
+    def __init__(self, obj, objectList):
         self.obj = obj
+        self.objectList = objectList
         self.attributes = dict()
         self.uniforms = dict()
         self.vsuniforms = dict()
@@ -1493,22 +1494,9 @@ class TransformExporter:
         if self.ob.type == 'CAMERA':
             self.ob.rotation_mode = 'QUATERNION'
             quat = self.ob.rotation_quaternion.copy()
-            print(quat)
-            rz180 = Matrix.Rotation(pi, 4, 'Z')
-            ry180 = Matrix.Rotation(pi, 4, 'Y')
-            #basisChange = Matrix([[1,0,0,0],[0,1,0,0],[0,0,-1,0],[0,0,0,1]])
             basisChange = Matrix([[1,0,0,0],[0,0,-1,0],[0,1,0,0],[0,0,0,1]])
             m = quat.to_matrix().to_4x4() * basisChange.inverted()
             quat = m.to_euler().to_quaternion()
-            print(quat)
-            #m = rz180 * quat.to_matrix().to_4x4() * ry180
-            ##m = quat.to_matrix().to_4x4()
-            #quat = m.to_quaternion()
-            #quat = (ry180*m*rz180).to_quaternion()
-            #quat = (m*ry180*rz180).to_quaternion()
-            #quat.y, quat.z = -quat.z, -quat.y
-            #e.z, e.y = e.y, e.z
-            #quat = e.to_quaternion()
         else:
             #We need the rotation in Quaternion mode, so we force it
             if self.ob.rotation_mode == 'QUATERNION':

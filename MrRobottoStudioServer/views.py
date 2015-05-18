@@ -152,28 +152,31 @@ class Studio(View):
 
 class AndroidView(View):
     server_socket = AndroidTCPServer()
+    connected = False
 
-    def connect(self, request):
+    def get_connect(self, request):
         response = HttpResponse(status=200)
         response['server_socket_port'] = settings.SERVER_SOCKET_PORT
+        AndroidView.connected = True
         return response
 
-    def disconnect(self, request):
+    def get_disconnect(self, request):
+        AndroidView.connected = False
         return HttpResponse(status=200)
 
-    def android_update(self, request):
+    def get_update(self, request):
         return FileResponse(open(Studio.mrr_file.file_path,'rb'))
 
     def get(self, request):
         #if not utils.is_studio_app(request):
         #    return HttpResponse(status=403)
         path = request.path.replace('/','')
-        if path == "connect":
-            return self.connect(request)
-        elif path == "disconnect":
-            return self.disconnect(request)
-        elif path == "android-update":
-            return self.android_update(request)
+        if path == "androidconnect":
+            return self.get_connect(request)
+        elif path == "androiddisconnect":
+            return self.get_disconnect(request)
+        elif path == "androidupdate":
+            return self.get_update(request)
         else:
             return HttpResponse(404)
 
@@ -181,7 +184,7 @@ class AndroidView(View):
 class ServicesView(View):
     last_android = None
 
-    def get_is_connected(self, request):
+    '''def get_is_connected(self, request):
         AndroidView.server_socket.lock.acquire()
         current = AndroidView.server_socket.is_connected()
         AndroidView.server_socket.lock.release()
@@ -190,6 +193,13 @@ class ServicesView(View):
         #ServicesView.last_android = current
         #while not AndroidView.server_socket.has_changed(): None
         #print "salgo y envio", AndroidView.server_socket.is_connected()
+        return JsonResponse({'value':current})'''
+
+    def get_is_connected(self, request):
+        current = AndroidView.connected
+        while current == ServicesView.last_android:
+            current = AndroidView.connected
+        ServicesView.last_android = current
         return JsonResponse({'value':current})
 
     def get_get_texture(self, request):
