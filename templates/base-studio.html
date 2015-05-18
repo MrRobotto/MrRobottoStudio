@@ -125,19 +125,6 @@
     <script src="{% static "js/plugins/morris/morris-data.js"%}" type="text/javascript"></script>
 
     <script type="text/javascript">
-        /*(function poll(){
-           setTimeout(function(){
-              $.ajax({ url: "/services/is-connected", success: function(data){
-              //Update your dashboard gauge
-                  $("#android-connected").text(data.value);
-                  console.log(data.value);
-                  pageScript(data.value);
-                  //Setup the next poll recursively
-                //poll();
-              }, dataType: "json", complete: poll});
-          }, 1000);
-        })();*/
-
 
         (function poll(){
             setInterval(function() {

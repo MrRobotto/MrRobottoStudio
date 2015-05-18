@@ -2,13 +2,13 @@ import os
 import json
 import threading
 import struct
+from math import pi
 
 import bpy
 import bpy.path
 import bmesh
 from mathutils import *
 import bpy.types
-
 
 D = bpy.data
 C = bpy.context
@@ -1474,7 +1474,6 @@ class MeshExporter:
         l = list(materialSet)
         l.sort()
         self.outMesh._materialIndices = l
-        print(materialSet)
         if -1 in boneIndices:
             boneIndices.remove(-1)
         l = list(boneIndices)
@@ -1490,23 +1489,36 @@ class TransformExporter:
         self.ob = ob
     def getRotation(self):
         #The camera has Y as up axis in blender
+        curMode = self.ob.rotation_mode
         if self.ob.type == 'CAMERA':
-            rotmode = self.ob.rotation_mode
             self.ob.rotation_mode = 'QUATERNION'
-            q = self.ob.rotation_quaternion
-            e = q.to_euler()
+            quat = self.ob.rotation_quaternion.copy()
+            print(quat)
+            rz180 = Matrix.Rotation(pi, 4, 'Z')
+            ry180 = Matrix.Rotation(pi, 4, 'Y')
+            #basisChange = Matrix([[1,0,0,0],[0,1,0,0],[0,0,-1,0],[0,0,0,1]])
+            basisChange = Matrix([[1,0,0,0],[0,0,-1,0],[0,1,0,0],[0,0,0,1]])
+            m = quat.to_matrix().to_4x4() * basisChange.inverted()
+            quat = m.to_euler().to_quaternion()
+            print(quat)
+            #m = rz180 * quat.to_matrix().to_4x4() * ry180
+            ##m = quat.to_matrix().to_4x4()
+            #quat = m.to_quaternion()
+            #quat = (ry180*m*rz180).to_quaternion()
+            #quat = (m*ry180*rz180).to_quaternion()
+            #quat.y, quat.z = -quat.z, -quat.y
             #e.z, e.y = e.y, e.z
-            quat = e.to_quaternion()
-            self.ob.rotation_mode = rotmode
+            #quat = e.to_quaternion()
         else:
             #We need the rotation in Quaternion mode, so we force it
             if self.ob.rotation_mode == 'QUATERNION':
-                quat = self.ob.rotation_quaternion
+                quat = self.ob.rotation_quaternion.copy()
             elif self.ob.rotation_mode != 'AXIS_ANGLES':
                 quat = self.ob.rotation_euler.to_quaternion()
             else:
                 self.ob.rotation_mode = 'QUATERNION'
-                quat = self.ob.rotation_quaternion
+                quat = self.ob.rotation_quaternion.copy()
+        self.ob.rotation_mode = curMode
         return quat
     def export(self):
         t = self.outTrans
@@ -1593,8 +1605,6 @@ class ModelExporter:
         materials = self.outModel.Materials
         if materials is not None:
             numMat = len(materials)
-            print(numMat)
-            print(materials)
             keys.addUniformKey(MaterialAmbientColorKey(numMat))
             keys.addUniformKey(MaterialAmbientIntensityKey(numMat))
             keys.addUniformKey(MaterialDiffuseColorKey(numMat))
@@ -1926,10 +1936,10 @@ class SceneObjectsListExporter:
                 camera = Camera()
                 CameraExporter(obj, camera).export()
                 self.outList.addSceneObj(camera, scene)
-            #elif (obj.type == 'LAMP'):
-            #    light = Light()
-            #    LightExporter(obj, light).export()
-            #    self.outList.addSceneObj(light, scene)
+            elif (obj.type == 'LAMP'):
+                light = Light()
+                LightExporter(obj, light).export()
+                self.outList.addSceneObj(light, scene)
         for obj in meshes:
             model = Model()
             ModelExporter(obj, model).export()

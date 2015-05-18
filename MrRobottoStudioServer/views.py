@@ -182,7 +182,9 @@ class ServicesView(View):
     last_android = None
 
     def get_is_connected(self, request):
+        AndroidView.server_socket.lock.acquire()
         current = AndroidView.server_socket.is_connected()
+        AndroidView.server_socket.lock.release()
         #while current == ServicesView.last_android:
         #    current = AndroidView.server_socket.is_connected()
         #ServicesView.last_android = current

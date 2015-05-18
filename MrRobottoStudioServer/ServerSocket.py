@@ -8,9 +8,11 @@ import settings
 class MyTCPHandler(SocketServer.StreamRequestHandler):
 
     def setup(self):
+        self.server.lock.acquire()
         SocketServer.StreamRequestHandler.setup(self)
         self.server.android = self.request
         self.server.changed = True
+        self.server.lock.release()
 
     def handle(self):
         # self.rfile is a file-like object created by the handler;
@@ -31,12 +33,14 @@ class MyTCPHandler(SocketServer.StreamRequestHandler):
                 return
 
     def finish(self):
+        self.server.lock.acquire()
         print "Finish"
         try:
             self.server.android = None
             self.server.changed = True
             SocketServer.StreamRequestHandler.finish(self)
         finally:
+            self.server.lock.release()
             return
 
 class AndroidTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
@@ -44,6 +48,7 @@ class AndroidTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         SocketServer.TCPServer.__init__(self,(utils.get_ip(), settings.SERVER_SOCKET_PORT), MyTCPHandler)
         self.android = None
         self.changed = True
+        self.lock = threading.Lock()
         self.server_thread = threading.Thread(target=self.serve_forever)
         # Exit the server thread when the main thread terminates
         self.server_thread.daemon = True
