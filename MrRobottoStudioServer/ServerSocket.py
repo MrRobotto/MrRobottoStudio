@@ -1,14 +1,14 @@
-import SocketServer
+import socketserver
 import threading
 
-import utils
-import settings
+import MrRobottoStudioServer.utils as utils
+import MrRobottoStudioServer.settings as settings
 
 
-class MyTCPHandler(SocketServer.StreamRequestHandler):
+class MyTCPHandler(socketserver.StreamRequestHandler):
 
     def setup(self):
-        SocketServer.StreamRequestHandler.setup(self)
+        socketserver.StreamRequestHandler.setup(self)
         self.server.android = self.request
 
     def handle(self):
@@ -28,13 +28,13 @@ class MyTCPHandler(SocketServer.StreamRequestHandler):
     def finish(self):
         try:
             self.server.android = None
-            SocketServer.StreamRequestHandler.finish(self)
+            socketserver.StreamRequestHandler.finish(self)
         finally:
             return
 
-class AndroidTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class AndroidTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     def __init__(self):
-        SocketServer.TCPServer.__init__(self,(utils.get_ip(), settings.SERVER_SOCKET_PORT), MyTCPHandler)
+        socketserver.TCPServer.__init__(self,(utils.get_ip(), settings.SERVER_SOCKET_PORT), MyTCPHandler)
         self.android = None
         self.server_thread = threading.Thread(target=self.serve_forever)
         # Exit the server thread when the main thread terminates
@@ -42,7 +42,7 @@ class AndroidTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         self.server_thread.start()
     def send_update(self):
         if self.android:
-            self.android.sendall("UPDT")
+            self.android.sendall("UPDT".encode('ascii'))
     def is_connected(self):
         return self.android != None
     def has_changed(self):

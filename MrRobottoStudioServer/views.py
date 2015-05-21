@@ -11,14 +11,10 @@ from MrRobottoStudioServer.ServerSocket import *
 #from AppController import *
 #from ServerSocket import AndroidTCPServer
 from MrRobottoStudioServer import settings
-from MrRobottoStudioServer.AppController import BlenderExe, BlendFile, MRRFile, FileSystemNavigator
+from MrRobottoStudioServer.AppController import BlenderExe, BlendFile, MRRFile, FileSystemNavigator, SceneObjectsList
 import MrRobottoStudioServer.utils
 from MrRobottoStudioServer.utils import *
 
-
-def prueba(request):
-    AndroidView.server_socket.send_update()
-    return HttpResponse()
 
 def home(request):
     if is_studio_app(request):
@@ -35,7 +31,7 @@ class Studio(View):
 
     def get_base_context(self):
         context = dict()
-        context['connected'] = AndroidView.server_socket.android is not None
+        context['connected'] = AndroidView.connected
         context['ip'] = get_ip()
         return context
 
@@ -44,7 +40,7 @@ class Studio(View):
             utils.export_to_mrr(Studio.blender_exe.file_path, Studio.blender_file.file_path)
             Studio.mrr_file.setFile(Studio.blender_file.dir_path, Studio.blender_file.get_file_base_name()+".mrr")
             Studio.mrr_file.export()
-        if AndroidView.server_socket.is_connected():
+        if AndroidView.connected:
             AndroidView.server_socket.send_update()
         #con = get_android_connection()
         #con.update_mrr(load_mrr(get_blender_file().get_mrr_abspath()))
@@ -80,8 +76,10 @@ class Studio(View):
             self.export(needsExport=False)
             return redirect("json-tools")
         elif 'save' in request.POST:
-            #save_json(get_blender_file().get_json_abspath(), request.POST['json'])
+            Studio.mrr_file.update(request.POST['save'])
+            self.export(needsExport=False)
             return redirect("json-tools")
+        return HttpResponse(404)
 
     def post(self, request):
         path = request.path.replace('/','')
@@ -114,7 +112,6 @@ class Studio(View):
         context = self.get_base_context()
         dir_path = Studio.blender_file_explorer.dir_path
         context['current'] = Studio.blender_file.file_path
-        print(dir_path)
         list_dir = get_directory(dir_path)
         context['dirname'] = list_dir[0]
         context['folders'] = list_dir[1]
@@ -128,6 +125,9 @@ class Studio(View):
             context['current_mrr'] = Studio.mrr_file
             context['json'] = Studio.mrr_file.get_json()
             context['texture_names'] = Studio.mrr_file.get_textures().keys()
+
+            context['scene'] = Studio.mrr_file.objects
+            context['scene_json'] = Studio.mrr_file.objects_json
         return TemplateResponse(request, "json-tools.html", context=context)
 
     def get(self, request):
@@ -183,17 +183,6 @@ class AndroidView(View):
 
 class ServicesView(View):
     last_android = None
-
-    '''def get_is_connected(self, request):
-        AndroidView.server_socket.lock.acquire()
-        current = AndroidView.server_socket.is_connected()
-        AndroidView.server_socket.lock.release()
-        #while current == ServicesView.last_android:
-        #    current = AndroidView.server_socket.is_connected()
-        #ServicesView.last_android = current
-        #while not AndroidView.server_socket.has_changed(): None
-        #print "salgo y envio", AndroidView.server_socket.is_connected()
-        return JsonResponse({'value':current})'''
 
     def get_is_connected(self, request):
         current = AndroidView.connected

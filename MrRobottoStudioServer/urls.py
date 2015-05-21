@@ -1,8 +1,8 @@
 from django.conf.urls import patterns, url
 from django.conf.urls.static import static
 
-from views import Studio, AndroidView, ServicesView
-import settings
+from MrRobottoStudioServer.views import Studio, AndroidView, ServicesView
+import MrRobottoStudioServer.settings as settings
 
 
 urlpatterns = patterns('',
@@ -20,8 +20,6 @@ urlpatterns = patterns('',
 
     url(r'^services/is-connected', ServicesView.as_view(), name='is-connected'),
     url(r'^services/textures', ServicesView.as_view(), name="textures"),
-
-    url(r'^prueba', 'MrRobottoStudioServer.views.prueba', name='home'),
 )
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

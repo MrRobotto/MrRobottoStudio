@@ -1144,18 +1144,22 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
             self.src += "\tvcolor = " + NAME_MATERIAL_DIFFUSE_COLOR + ";\n"
     def genTextureOut(self):
         self.src += "\tvtexco = " + NAME_TEXTURECO + ";\n"
-    #def genMultipleMaterialTextureOut(self):
-    #    self.src += "\tint matIndexInt = int(" + NAME_MATERIAL + ");\n"
-    #    self.src += "\tint isTextured = int(" + NAME_TEXTURED_MATERIAL + "[matIndexInt]);\n"
-    #    self.src += "\tif (isTextured == 1) {\n"
-    #    self.src += "\t\tvtexco = " + NAME_TEXTURECO + ";\n"
-    #    self.src += "\t\tvcolor = " + NAME_MATERIAL_DIFFUSE_COLOR +"[matIndexInt];\n"
-    #    self.src += "\t}\n"
-    #    self.src += "\telse {\n"
-    #    self.src += "\t\tvtexco = vec2(-1.0,-1.0);\n"
-    #    self.src += "\t\tvcolor = " + NAME_MATERIAL_DIFFUSE_COLOR +"[matIndexInt];\n"
-    #    self.src += "\t}\n"
     def genApplyBonesFunction(self):
+        s = ""
+        s += "vec3 applyBones() {\n"
+        s += "\tvec4 indices = " + NAME_BIND + ";\n"
+        s += "\tvec4 w = " + NAME_WEIGHT + ";\n"
+        s += "\t if (int(indices.x) < 0) {\n"
+        s += "\t\treturn " + NAME_VERTEX + ";\n"
+        s += "\t}\n"
+        if self.configurer.getBonesCount() == 1:
+            s += "\tmat4 mat = " + NAME_BONE_MATRIX + " * w.x;\n"
+            s += "\tvec4 v = mat * vec4(" + NAME_VERTEX + ",1);\n"
+            s += "\treturn vec3(v.x/v.w, v.y/v.w, v.z/v.w);\n"
+            s += "}\n"
+            s += "\n"
+            self.src += s
+            return
         s = ""
         s += "vec3 applyBones() {\n"
         s += "\tvec4 indices = " + NAME_BIND + ";\n"
@@ -1225,7 +1229,7 @@ class ShaderGenerator:
         return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.uniforms.values(), vs, fs)
 
 class ShaderConfigurer:
-    def __init__(self, obj, objectList):
+    def __init__(self, obj, objectList=None):
         self.obj = obj
         self.objectList = objectList
         self.attributes = dict()
@@ -1250,6 +1254,10 @@ class ShaderConfigurer:
         if UNIFORM_MATERIAL_DIFFUSE_COLOR not in self.uniforms:
             return 0
         return self.uniforms[UNIFORM_MATERIAL_DIFFUSE_COLOR].Count
+    def getBonesCount(self):
+        if UNIFORM_BONE_MATRIX not in self.uniforms:
+            return 0
+        return self.uniforms[UNIFORM_BONE_MATRIX].Count
     def hasMaterials(self):
         return UNIFORM_MATERIAL_DIFFUSE_COLOR in self.uniforms
     def hasMultipleMaterialsAndTextures(self):
