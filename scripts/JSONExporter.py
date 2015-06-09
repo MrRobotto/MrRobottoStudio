@@ -1050,7 +1050,6 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
         #this works for diffuse only
         s = ""
         s += "vec3 mrAmbientLightColor = vec3(0.0, 0.0, 0.0);\n"
-        s += "const vec3 lightPos = vec3(1.0,1.0,1.0);\n"
 
         s += "vec4 blinnPhongColor(vec4 diffColor) {\n"
         s += "\tvec3 linearColor;\n"
@@ -1085,7 +1084,7 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
             s += "\tlightDir = normalize(lightPos - vvert);\n"
             s += "\tdistance = length(lightPos - vvert);\n"
             s += "\tatt = 1.0/(1.0+0.3*distance);\n"
-            s += "\tlambertian = max(dot(lightDir, normal), 0.1);\n"
+            s += "\tlambertian = max(dot(lightDir, normal), 0.0);\n"
             s += "\tdiffuse = lambertian;\n"
             s += "\tif (lambertian > 0.0) {\n"
             s += "\t\thalfDir = normalize(lightDir + viewDir);\n"
@@ -1095,11 +1094,11 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
             #Falta el light energy
             #s += "\tlinearColor += att*(lambertian * diffColor.xyz * lightCol + specular * vspecularColor * lightCol);\n"
             #this works for diffuse
-            s += "\tlinearColor += (diffuse * diffColor.xyz * lightCol);\n"
+            s += "\tlinearColor += (diffuse * diffColor.xyz * lightCol + specular * vspecularColor * lightCol);\n"
             #s += "\tif (distance > 11.5) { linearColor = vec3(1.0,0.0,0.0);}\n"
             #s += "\t else { linearColor += (diffuse * diffColor.xyz * lightCol);}\n"
         s += "\tgammaCorrectedColor = pow(linearColor, gammaVec);\n"
-        s += "\treturn vec4(linearColor, 1.0);\n"
+        s += "\treturn vec4(gammaCorrectedColor, 1.0);\n"
         s += "}\n"
         s += "\n"
         self.src += s
@@ -1206,32 +1205,6 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
         self.genMainClose()
         return self.src
 
-
-class ShaderGenerator:
-    counter = 0
-    baseName = "ShaderProgram_"
-    def __init__(self, obj, objectList=None):
-        self.obj = obj
-        self.configurer = ShaderConfigurer(self.obj, objectList)
-        self.name = self.__genName()
-    def __genName(self):
-        name = ShaderGenerator.baseName + str(ShaderGenerator.counter)
-        ShaderGenerator.counter += 1
-        return name
-    def genSource(self):
-        vs, fs = None, None
-        if isinstance(self.obj, Model):
-            vs = VertexShaderSourceGenerator(self.configurer).genSource()
-            fs = FragmentShaderSourceGenerator(self.configurer).genSource()
-        print("VertexShader")
-        print(vs)
-        print("FragmentShader")
-        print(fs)
-        return vs, fs
-    def genShaderProgram(self):
-        vs, fs = self.genSource()
-        return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.uniforms.values(), vs, fs)
-
 #TODO: Change the Exporter.sceneObjectsList
 class ShaderConfigurer:
     def __init__(self, obj, objectList=None):
@@ -1306,12 +1279,12 @@ class ShaderConfigurer:
             self.__getModelUniforms()
     def __getModelUniforms(self):
         d = self.uniforms.copy()
-        d.pop(UNIFORM_MODEL_MATRIX, None)
+        #d.pop(UNIFORM_MODEL_MATRIX, None)
         if (self.hasLights()):
             self.vsuniforms[UNIFORM_MODELVIEW_MATRIX] = ModelViewMatrixUniformKey().getUniform()
-            fsmodelview = ModelViewMatrixUniformKey().getUniform()
-            fsmodelview.Name = "fs"+fsmodelview.Name
-            fsmodelview.Uniform = "FS_" + UNIFORM_MODELVIEW_MATRIX
+            #fsmodelview = ModelViewMatrixUniformKey().getUniform()
+            #fsmodelview.Name = "fs"+fsmodelview.Name
+            #fsmodelview.Uniform = "FS_" + UNIFORM_MODELVIEW_MATRIX
             #self.fsuniforms[fsmodelview.Uniform] = fsmodelview
             if not self.hasBones():
                 self.vsuniforms[UNIFORM_NORMAL_MATRIX] = NormalMatrixUniformKey().getUniform()
@@ -1334,6 +1307,30 @@ class ShaderConfigurer:
         self.uniforms.update(self.fsuniforms)
 
 
+class ShaderGenerator:
+    counter = 0
+    baseName = "ShaderProgram_"
+    def __init__(self, obj, objectList=None):
+        self.obj = obj
+        self.configurer = ShaderConfigurer(self.obj, objectList)
+        self.name = self.__genName()
+    def __genName(self):
+        name = ShaderGenerator.baseName + str(ShaderGenerator.counter)
+        ShaderGenerator.counter += 1
+        return name
+    def genSource(self):
+        vs, fs = None, None
+        if isinstance(self.obj, Model):
+            vs = VertexShaderSourceGenerator(self.configurer).genSource()
+            fs = FragmentShaderSourceGenerator(self.configurer).genSource()
+        print("VertexShader")
+        print(vs)
+        print("FragmentShader")
+        print(fs)
+        return vs, fs
+    def genShaderProgram(self):
+        vs, fs = self.genSource()
+        return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.uniforms.values(), vs, fs)
 
 
 #TODO: All exporters should have a method export with an out object?
