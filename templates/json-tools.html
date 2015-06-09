@@ -190,10 +190,13 @@
             console.log(newData);
             return JSON.stringify(newData);
         };
-        $("#save-btn").click(function() {
-            $.post("/studio/json-tools",
-                    {save: getNewData()}
-            );
+        $(document).ready(function() {
+            $("#save-btn").click(function() {
+                console.log("HHOLAAAAAA");
+                $.post("/studio/json-tools",
+                        {save: getNewData()}
+                );
+            });
         });
     </script>
 

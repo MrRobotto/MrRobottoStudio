@@ -28,9 +28,11 @@
             {% endif %}
             {% if obj.Materials %}
                 {% for mat in obj.Materials %}
-                    <div class="row">
-                        <img src="/services/textures/{{ mat.Texture.Name }}"/>
-                    </div>
+                    {% if mat.Texture %}
+                        <div class="row">
+                            <img src="/services/textures/{{ mat.Texture.Name }}"/>
+                        </div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         </div>

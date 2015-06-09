@@ -36,12 +36,12 @@ ATTRNAME_TEXTURE = "Texture"
 ATTRNAME_WEIGHT = "Weight"
 ATTRNAME_BIND = "BoneIndices"
 
-NAME_VERTEX = "vertex"
-NAME_NORMAL = "normal"
-NAME_MATERIAL = "matIndex"
-NAME_TEXTURECO = "texCo"
-NAME_WEIGHT = "weights"
-NAME_BIND = "bIndices"
+ANAME_VERTEX = "aVertex"
+ANAME_NORMAL = "aNormal"
+ANAME_MATERIAL = "aMatIndex"
+ANAME_TEXTURECO = "aTexCo"
+ANAME_WEIGHT = "aWeights"
+ANAME_BIND = "aBoneIndices"
 
 INDEX_VERTEX = 0
 INDEX_NORMAL = 1
@@ -71,12 +71,14 @@ SIZEKEY_TEXTURE = 2
 SIZEKEY_WEIGHT = NUM_BONES_PERVERTEX
 SIZEKEY_BIND = NUM_BONES_PERVERTEX
 
-UNIFORMGENERATOR_MVP = "Generator_Matrix_Model_View_Projection"
-UNIFORMGENERATOR_MODEL = "Generator_Matrix_Model"
-UNIFORMGENERATOR_VIEW = "Generator_Matrix_View"
-UNIFORMGENERATOR_PROJECTION = "Generator_Matrix_Projection"
-UNIFORMGENERATOR_TMV = "Generator_Matrix_Transp_Model_View"
-UNIFORMGENERATOR_ITMV = "Generator_Matrix_Inverse_Transp_Model_View"
+UNIFORMGENERATOR_MVP_MATRIX = "Generator_Model_View_Projection_Matrix"
+UNIFORMGENERATOR_MODEL_MATRIX = "Generator_Model_Matrix"
+UNIFORMGENERATOR_VIEW_MATRIX = "Generator_View_Matrix"
+UNIFORMGENERATOR_PROJECTION_MATRIX = "Generator_Projection_Matrix"
+UNIFORMGENERATOR_MODELVIEW_MATRIX = "Generator_Model_View_Matrix"
+UNIFORMGENERATOR_NORMAL_MATRIX = "Generator_Normal_Matrix"
+UNIFORMGENERATOR_TMV_MATRIX = "Generator_Transp_Model_View_Matrix"
+UNIFORMGENERATOR_ITMV_MATRIX = "Generator_Inverse_Transp_Model_View_Matrix"
 UNIFORMGENERATOR_MATERIAL_AMBIENT_COLOR = "Generator_Ambient_Color"
 UNIFORMGENERATOR_MATERIAL_AMBIENT_INTENSITY = "Generator_Ambient_Intensity"
 UNIFORMGENERATOR_MATERIAL_DIFFUSE_COLOR = "Generator_Diffuse_Color"
@@ -91,12 +93,14 @@ UNIFORMGENERATOR_LIGHT_COLOR = "Generator_Light_Color"
 UNIFORMGENERATOR_LIGHT_POSITION_ARRAY = "Generator_Light_Position_Array"
 UNIFORMGENERATOR_LIGHT_COLOR_ARRAY = "Generator_Light_Color_Array"
 
-UNIFORM_MVP = "Matrix_Model_View_Projection"
-UNIFORM_MODEL = "Matrix_Model"
-UNIFORM_VIEW = "Matrix_View"
-UNIFORM_PROJECTION = "Matrix_Projection"
-UNIFORM_TMV = "Matrix_Transp_Model_View"
-UNIFORM_ITMV = "Matrix_Inverse_Transp_Model_View"
+UNIFORM_MVP_MATRIX = "Model_View_Projection_Matrix"
+UNIFORM_MODEL_MATRIX = "Model_Matrix"
+UNIFORM_VIEW_MATRIX = "View_Matrix"
+UNIFORM_PROJECTION_MATRIX = "Projection_Matrix"
+UNIFORM_MODELVIEW_MATRIX = "Model_View_Matrix"
+UNIFORM_NORMAL_MATRIX = "Normal_Matrix"
+UNIFORM_TMV_MATRIX = "Transp_Model_View_Matrix"
+UNIFORM_ITMV_MATRIX = "Inverse_Transp_Model_View_Matrix"
 UNIFORM_MATERIAL_AMBIENT_COLOR = "Ambient_Color"
 UNIFORM_MATERIAL_AMBIENT_INTENSITY = "Ambient_Intensity"
 UNIFORM_MATERIAL_DIFFUSE_COLOR = "Diffuse_Color"
@@ -111,23 +115,25 @@ UNIFORM_LIGHT_COLOR = "Light_Color"
 UNIFORM_LIGHT_POSITION_ARRAY = "Light_Position_Array"
 UNIFORM_LIGHT_COLOR_ARRAY = "Light_Color_Array"
 
-NAME_MVP = "mvpMatrix"
-NAME_MODEL = "modelMatrix"
-NAME_VIEW = "viewMatrix"
-NAME_PROJECTION = "projMatrix"
-NAME_MATERIAL_AMBIENT_COLOR = "ambientClr"
-NAME_MATERIAL_AMBIENT_INTENSITY = "ambientInt"
-NAME_MATERIAL_DIFFUSE_COLOR = "diffuse_color"
-NAME_MATERIAL_DIFFUSE_INTENSITY = "diffuseInt"
-NAME_MATERIAL_SPECULAR_COLOR = "specular_color"
-NAME_MATERIAL_SPECULAR_INTENSITY = "specularInt"
-NAME_BONE_MATRIX = "bones"
-NAME_TEXTURE_SAMPLER = "mrtexture"
-NAME_TEXTURED_MATERIAL = "mrtexturedMaterials"
-NAME_LIGHT_POSITION = "mrLightPosition"
-NAME_LIGHT_COLOR = "mrLightColor"
-NAME_LIGHT_POSITION_ARRAY = "mrLightsPosition"
-NAME_LIGHT_COLOR_ARRAY = "mrLightsColor"
+UNAME_MVP_MATRIX = "mrMvpMatrix"
+UNAME_MODEL_MATRIX = "mrModelMatrix"
+UNAME_VIEW_MATRIX = "mrViewMatrix"
+UNAME_PROJECTION_MATRIX = "projMatrix"
+UNAME_MODELVIEW_MATRIX = "mrModelViewMatrix"
+UNAME_NORMAL_MATRIX = "mrNormalMatrix"
+UNAME_MATERIAL_AMBIENT_COLOR = "mrAmbientColor"
+UNAME_MATERIAL_AMBIENT_INTENSITY = "mrAmbientInt"
+UNAME_MATERIAL_DIFFUSE_COLOR = "mrDiffuseColor"
+UNAME_MATERIAL_DIFFUSE_INTENSITY = "mrDiffuseInt"
+UNAME_MATERIAL_SPECULAR_COLOR = "mrSpecularColor"
+UNAME_MATERIAL_SPECULAR_INTENSITY = "mrSpecularInt"
+UNAME_BONE_MATRIX = "mrBones"
+UNAME_TEXTURE_SAMPLER = "mrTexture"
+UNAME_TEXTURED_MATERIAL = "mrTexturedMaterials"
+UNAME_LIGHT_POSITION = "mrLightPosition"
+UNAME_LIGHT_COLOR = "mrLightColor"
+UNAME_LIGHT_POSITION_ARRAY = "mrLightsPosition"
+UNAME_LIGHT_COLOR_ARRAY = "mrLightsColor"
 
 
 MESHDICT_FACENAME = "Faces"
@@ -480,9 +486,16 @@ class UniformKey:
 
 class UniformKeyList:
     def __init__(self):
-        self.uniforms = []
+        self.uniforms = list()
+        self.byGenType = dict()
     def addUniformKey(self, uniformKey):
         self.uniforms.append(uniformKey)
+        if not uniformKey.Generator in self.byGenType:
+            self.byGenType[uniformKey.Generator] = [uniformKey]
+        else:
+            self.byGenType[uniformKey.Generator].append(uniformKey)
+    def getByGenerator(self, generator):
+        return self.byGenType[generator]
     def __iter__(self):
         yield from self.uniforms
 
@@ -616,6 +629,7 @@ class Scene(SceneObj):
     def __init__(self, clearColor = SCENE_CLEARCOLOR):
         SceneObj.__init__(self, DEFAULT_NAME_SCENE, SCENEOBJTYPE_SCENE)
         self.ClearColor = clearColor
+        self.AmbientLightColor = None
 
 
 
@@ -777,6 +791,10 @@ class SceneObjectsList:
         if typ in self.byType:
             return self.byType[typ]
         return []
+    def getLights(self):
+        if SCENEOBJTYPE_LIGHT in self.byType:
+            return self.byType[SCENEOBJTYPE_LIGHT]
+        return []
     def addTexture(self, texture):
         self.textures[texture.Name] = texture
     def getTextures(self):
@@ -807,226 +825,171 @@ class SceneObjectsList:
 
 class VertexAttribute(Attribute):
     def __init__(self):
-        Attribute.__init__(self,ATTRNAME_VERTEX, NAME_VERTEX, INDEX_VERTEX, DATATYPEATTR_VERTEX)
+        Attribute.__init__(self,ATTRNAME_VERTEX, ANAME_VERTEX, INDEX_VERTEX, DATATYPEATTR_VERTEX)
 
 class NormalAttribute(Attribute):
     def __init__(self):
-        Attribute.__init__(self,ATTRNAME_NORMAL, NAME_NORMAL, INDEX_NORMAL, DATATYPEATTR_NORMAL)
+        Attribute.__init__(self,ATTRNAME_NORMAL, ANAME_NORMAL, INDEX_NORMAL, DATATYPEATTR_NORMAL)
 
 class MaterialAttribute(Attribute):
     def __init__(self):
-        Attribute.__init__(self,ATTRNAME_MATERIAL, NAME_MATERIAL, INDEX_MATERIAL, DATATYPEATTR_MATERIAL)
+        Attribute.__init__(self,ATTRNAME_MATERIAL, ANAME_MATERIAL, INDEX_MATERIAL, DATATYPEATTR_MATERIAL)
 
 class TextureAttribute(Attribute):
     def __init__(self):
-        Attribute.__init__(self,ATTRNAME_TEXTURE, NAME_TEXTURECO, INDEX_TEXTURE, DATATYPEATTR_TEXTURE)
+        Attribute.__init__(self,ATTRNAME_TEXTURE, ANAME_TEXTURECO, INDEX_TEXTURE, DATATYPEATTR_TEXTURE)
 
 class WeightAttribute(Attribute):
     def __init__(self):
-        Attribute.__init__(self,ATTRNAME_WEIGHT, NAME_WEIGHT, INDEX_WEIGHT, DATATYPEATTR_WEIGHT)
+        Attribute.__init__(self,ATTRNAME_WEIGHT, ANAME_WEIGHT, INDEX_WEIGHT, DATATYPEATTR_WEIGHT)
 
 class BIndAttribute(Attribute):
     def __init__(self):
-        Attribute.__init__(self,ATTRNAME_BIND, NAME_BIND, INDEX_BIND, DATATYPEATTR_BIND)
+        Attribute.__init__(self,ATTRNAME_BIND, ANAME_BIND, INDEX_BIND, DATATYPEATTR_BIND)
 
 
 
 class VertexKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_VERTEX, NAME_VERTEX, INDEX_VERTEX, SIZEKEY_VERTEX, DATATYPEKEY_VERTEX)
+        AttributeKey.__init__(self,ATTRNAME_VERTEX, ANAME_VERTEX, INDEX_VERTEX, SIZEKEY_VERTEX, DATATYPEKEY_VERTEX)
 
 class NormalKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_NORMAL, NAME_NORMAL, INDEX_NORMAL, SIZEKEY_NORMAL ,DATATYPEKEY_NORMAL)
+        AttributeKey.__init__(self,ATTRNAME_NORMAL, ANAME_NORMAL, INDEX_NORMAL, SIZEKEY_NORMAL ,DATATYPEKEY_NORMAL)
 
 class MaterialKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_MATERIAL, NAME_MATERIAL, INDEX_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
+        AttributeKey.__init__(self,ATTRNAME_MATERIAL, ANAME_MATERIAL, INDEX_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
 
 class TextureKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_TEXTURE, NAME_TEXTURECO, INDEX_TEXTURE, SIZEKEY_TEXTURE, DATATYPEKEY_TEXTURE)
+        AttributeKey.__init__(self,ATTRNAME_TEXTURE, ANAME_TEXTURECO, INDEX_TEXTURE, SIZEKEY_TEXTURE, DATATYPEKEY_TEXTURE)
 
 class WeightKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_WEIGHT, NAME_WEIGHT, INDEX_WEIGHT, SIZEKEY_WEIGHT, DATATYPEKEY_WEIGHT)
+        AttributeKey.__init__(self,ATTRNAME_WEIGHT, ANAME_WEIGHT, INDEX_WEIGHT, SIZEKEY_WEIGHT, DATATYPEKEY_WEIGHT)
 
 class BIndKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_BIND, NAME_BIND, INDEX_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
+        AttributeKey.__init__(self,ATTRNAME_BIND, ANAME_BIND, INDEX_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
 
 
 
-class MVPUniform(Uniform):
-    def __init__(self):
-        Uniform.__init__(self, UNIFORM_MVP, NAME_MVP, 1, DATATYPE_MAT4)
-
-class ModelMatrixUniform(Uniform):
-    def __init__(self):
-        Uniform.__init__(self, UNIFORM_MODEL, NAME_MODEL, 1, DATATYPE_MAT4)
-
-class ViewMatrixUniform(Uniform):
-    def __init__(self):
-        Uniform.__init__(self, UNIFORM_VIEW, NAME_VIEW, 1, DATATYPE_MAT4)
-
-class ProjectionMatrixUniform(Uniform):
-    def __init__(self):
-        Uniform.__init__(self, UNIFORM_PROJECTION, NAME_PROJECTION, 1, DATATYPE_MAT4)
-
-class MaterialAmbientColor(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_MATERIAL_AMBIENT_COLOR, NAME_MATERIAL_AMBIENT_COLOR, count, DATATYPE_VEC4)
-
-class MaterialAmbientIntensity(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_MATERIAL_AMBIENT_INTENSITY, NAME_MATERIAL_AMBIENT_INTENSITY, count, DATATYPE_FLOAT)
-
-class MaterialDiffuseColor(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_MATERIAL_DIFFUSE_COLOR, NAME_MATERIAL_DIFFUSE_COLOR, count, DATATYPE_VEC4)
-
-class MaterialDiffuseIntensity(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_MATERIAL_DIFFUSE_INTENSITY, NAME_MATERIAL_DIFFUSE_INTENSITY, count, DATATYPE_FLOAT)
-
-class MaterialSpecularColor(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_MATERIAL_SPECULAR_COLOR, NAME_MATERIAL_SPECULAR_COLOR, count, DATATYPE_VEC4)
-
-class MaterialSpecularIntensity(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_MATERIAL_SPECULAR_INTENSITY, NAME_MATERIAL_SPECULAR_INTENSITY, count, DATATYPE_FLOAT)
-
-class BoneMatrix(Uniform):
-    def __init__(self, count):
-        Uniform.__init__(self, UNIFORM_BONE_MATRIX, NAME_BONE_MATRIX, count, DATATYPE_MAT4)
-
-class TexturedMaterial(Uniform):
-    def __init__(self, count=1):
-        Uniform.__init__(self, UNIFORM_TEXTURED_MATERIAL, NAME_TEXTURED_MATERIAL, count, DATATYPE_FLOAT)
-
-class TextureSampler(Uniform):
-    def __init__(self,count=1):
-        Uniform.__init__(self, UNIFORM_TEXTURE, NAME_TEXTURE_SAMPLER, count, DATATYPE_SAMPLER2D)
-
-class LightPosition(Uniform):
-    def __init__(self):
-        Uniform.__init__(self, UNIFORM_LIGHT_POSITION, NAME_LIGHT_POSITION, 1, DATATYPE_VEC4)
-
-class LightColor(Uniform):
-    def __init__(self):
-        Uniform.__init__(self, UNIFORM_LIGHT_COLOR, NAME_LIGHT_COLOR, 1, DATATYPE_VEC4)
-
-class LightsPositionArray(Uniform):
-    def __init__(self,count=1):
-        Uniform.__init__(self, UNIFORM_LIGHT_POSITION_ARRAY, NAME_LIGHT_POSITION_ARRAY, count, DATATYPE_VEC4)
-
-class LightsColorArray(Uniform):
-    def __init__(self,count=1):
-        Uniform.__init__(self, UNIFORM_LIGHT_COLOR_ARRAY, NAME_LIGHT_COLOR_ARRAY, count, DATATYPE_VEC4)
 
 
 
 class MVPUniformKey(UniformKey):
     def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MVP,  UNIFORM_MVP, RENDERING_LEVEL_SCENE, 1)
-        self.uniformName = NAME_MVP
+        UniformKey.__init__(self, UNIFORMGENERATOR_MVP_MATRIX,  UNIFORM_MVP_MATRIX, RENDERING_LEVEL_SCENE, 1)
+        self.uniformName = UNAME_MVP_MATRIX
         self.uniformDataType = DATATYPE_MAT4
 
 class ModelMatrixUniformKey(UniformKey):
     def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MODEL, UNIFORM_MODEL, RENDERING_LEVEL_OBJECT, 1)
-        self.uniformName = NAME_MODEL
+        UniformKey.__init__(self, UNIFORMGENERATOR_MODEL_MATRIX, UNIFORM_MODEL_MATRIX, RENDERING_LEVEL_OBJECT, 1)
+        self.uniformName = UNAME_MODEL_MATRIX
         self.uniformDataType = DATATYPE_MAT4
 
 class ViewMatrixUniformKey(UniformKey):
     def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_VIEW, UNIFORM_VIEW, RENDERING_LEVEL_OBJECT, 1)
-        self.uniformName = NAME_VIEW
+        UniformKey.__init__(self, UNIFORMGENERATOR_VIEW_MATRIX, UNIFORM_VIEW_MATRIX, RENDERING_LEVEL_OBJECT, 1)
+        self.uniformName = UNAME_VIEW_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class ModelViewMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MODELVIEW_MATRIX, UNIFORM_MODELVIEW_MATRIX, RENDERING_LEVEL_SCENE, 1)
+        self.uniformName = UNAME_MODELVIEW_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class NormalMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_NORMAL_MATRIX, UNIFORM_NORMAL_MATRIX, RENDERING_LEVEL_TOP_SCENE_LEVEL, 1)
+        self.uniformName = UNAME_NORMAL_MATRIX
         self.uniformDataType = DATATYPE_MAT4
 
 class ProjectionMatrixUniformKey(UniformKey):
     def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_PROJECTION , UNIFORM_PROJECTION, RENDERING_LEVEL_OBJECT, 1)
-        self.uniformName = NAME_PROJECTION
+        UniformKey.__init__(self, UNIFORMGENERATOR_PROJECTION_MATRIX , UNIFORM_PROJECTION_MATRIX, RENDERING_LEVEL_OBJECT, 1)
+        self.uniformName = UNAME_PROJECTION_MATRIX
         self.uniformDataType = DATATYPE_MAT4
 
 class MaterialAmbientColorKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_AMBIENT_COLOR, UNIFORM_MATERIAL_AMBIENT_COLOR, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_MATERIAL_AMBIENT_COLOR
+        self.uniformName = UNAME_MATERIAL_AMBIENT_COLOR
         self.uniformDataType = DATATYPE_VEC4
 
 class MaterialAmbientIntensityKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_AMBIENT_INTENSITY, UNIFORM_MATERIAL_AMBIENT_INTENSITY, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_MATERIAL_AMBIENT_INTENSITY
+        self.uniformName = UNAME_MATERIAL_AMBIENT_INTENSITY
         self.uniformDataType = DATATYPE_FLOAT
 
 class MaterialDiffuseColorKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_DIFFUSE_COLOR, UNIFORM_MATERIAL_DIFFUSE_COLOR, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_MATERIAL_DIFFUSE_COLOR
+        self.uniformName = UNAME_MATERIAL_DIFFUSE_COLOR
         self.uniformDataType = DATATYPE_VEC4
 
 class MaterialDiffuseIntensityKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_DIFFUSE_INTENSITY, UNIFORM_MATERIAL_DIFFUSE_INTENSITY, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_MATERIAL_DIFFUSE_INTENSITY
+        self.uniformName = UNAME_MATERIAL_DIFFUSE_INTENSITY
         self.uniformDataType = DATATYPE_FLOAT
 
 class MaterialSpecularColorKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_SPECULAR_COLOR, UNIFORM_MATERIAL_SPECULAR_COLOR, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_MATERIAL_SPECULAR_COLOR
+        self.uniformName = UNAME_MATERIAL_SPECULAR_COLOR
         self.uniformDataType = DATATYPE_VEC4
 
 class MaterialSpecularIntensityKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_SPECULAR_INTENSITY ,UNIFORM_MATERIAL_SPECULAR_INTENSITY, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_MATERIAL_SPECULAR_INTENSITY
+        self.uniformName = UNAME_MATERIAL_SPECULAR_INTENSITY
         self.uniformDataType = DATATYPE_FLOAT
 
 class BoneMatrixKey(UniformKey):
     def __init__(self, count):
         UniformKey.__init__(self, UNIFORMGENERATOR_BONE_MATRIX, UNIFORM_BONE_MATRIX, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_BONE_MATRIX
+        self.uniformName = UNAME_BONE_MATRIX
         self.uniformDataType = DATATYPE_MAT4
 
 class TexturedMaterialKey(UniformKey):
     def __init__(self, count=1):
         UniformKey.__init__(self, UNIFORMGENERATOR_TEXTURED_MATERIAL, UNIFORM_TEXTURED_MATERIAL, count)
-        self.uniformName = NAME_TEXTURED_MATERIAL
+        self.uniformName = UNAME_TEXTURED_MATERIAL
         self.uniformDataType = DATATYPE_FLOAT
 
 class TextureSamplerKey(UniformKey):
     def __init__(self, count=1, index=0):
         UniformKey.__init__(self, UNIFORMGENERATOR_TEXTURE, UNIFORM_TEXTURE, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_TEXTURE_SAMPLER
+        self.uniformName = UNAME_TEXTURE_SAMPLER
         self.uniformDataType = DATATYPE_SAMPLER2D
 
 class LightPositionKey(UniformKey):
-    def __init__(self,count=1):
-        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION, UNIFORM_LIGHT_POSITION, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_LIGHT_POSITION
+    def __init__(self,count=1,index=0):
+        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION, UNIFORM_LIGHT_POSITION, RENDERING_LEVEL_OBJECT, count, index)
+        self.uniformName = UNAME_LIGHT_POSITION
         self.uniformDataType = DATATYPE_VEC4
 
 class LightColorKey(UniformKey):
-    def __init__(self,count=1):
-        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR, UNIFORM_LIGHT_COLOR, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = NAME_LIGHT_COLOR
+    def __init__(self,count=1,index=0):
+        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR, UNIFORM_LIGHT_COLOR, RENDERING_LEVEL_OBJECT, count, index)
+        self.uniformName = UNAME_LIGHT_COLOR
         self.uniformDataType = DATATYPE_VEC4
 
 class LightsPositionArrayKey(UniformKey):
     def __init__(self,count=1):
         UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION_ARRAY, UNIFORM_LIGHT_POSITION_ARRAY, RENDERING_LEVEL_SCENE, count)
-        self.uniformName = NAME_LIGHT_POSITION_ARRAY
+        self.uniformName = UNAME_LIGHT_POSITION_ARRAY
         self.uniformDataType = DATATYPE_VEC4
 
 class LightsColorArrayKey(UniformKey):
     def __init__(self,count=1):
         UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR_ARRAY, UNIFORM_LIGHT_COLOR_ARRAY, RENDERING_LEVEL_SCENE, count)
-        self.uniformName = NAME_LIGHT_COLOR_ARRAY
+        self.uniformName = UNAME_LIGHT_COLOR_ARRAY
         self.uniformDataType = DATATYPE_VEC4
 
 
@@ -1043,43 +1006,6 @@ def getAttributeFromAttributeKey(attrib):
         return WeightAttribute()
     elif isinstance(attrib, BIndKey):
         return BIndAttribute()
-
-def getUniformFromUniformKey(uniformKey):
-     '''if isinstance(uniform,MVPUniformKey):
-        return MVPUniform()
-     if isinstance(uniform,ModelMatrixUniformKey):
-        return ModelMatrixUniform()
-     if isinstance(uniform,ViewMatrixUniformKey):
-        return ViewMatrixUniform()
-     if isinstance(uniform,ProjectionMatrixUniformKey):
-        return ProjectionMatrixUniform()
-     if isinstance(uniform,MaterialAmbientColorKey):
-        return MaterialAmbientColor(uniform.Count)
-     if isinstance(uniform,MaterialAmbientIntensityKey):
-        return MaterialAmbientIntensity(uniform.Count)
-     if isinstance(uniform,MaterialDiffuseColorKey):
-        return MaterialDiffuseColor(uniform.Count)
-     if isinstance(uniform,MaterialDiffuseIntensityKey):
-        return MaterialDiffuseIntensity(uniform.Count)
-     if isinstance(uniform,MaterialSpecularColorKey):
-        return MaterialSpecularColor(uniform.Count)
-     if isinstance(uniform,MaterialSpecularIntensityKey):
-        return MaterialSpecularIntensity(uniform.Count)
-     if isinstance(uniform,BoneMatrixKey):
-        return BoneMatrix(uniform.Count)
-     if isinstance(uniform,TextureSamplerKey):
-         return TextureSampler(uniform.Count)
-     if isinstance(uniform,TexturedMaterialKey):
-         return TexturedMaterial(uniform.Count)
-     if isinstance(uniform,LightColorKey):
-         return LightColor()
-     if isinstance(uniform,LightPositionKey):
-         return LightPosition()
-     if isinstance(uniform,LightsPositionArrayKey):
-         return LightsPositionArray(uniform.Count)
-     if isinstance(uniform,LightsColorArrayKey):
-         return LightsColorArray(uniform.Count)'''
-     return uniformKey.getUniform()
 
 
 
@@ -1115,17 +1041,82 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
     def __init__(self, configurer):
         ShaderSourceGeneratorBase.__init__(self, configurer, configurer.fsuniforms)
     def genColorFromMaterial(self):
-        self.src += "\tgl_FragColor = vcolor;\n"
+        self.src += "\tvec4 color = vcolor;\n"
     def genColorFromTexture(self):
-        self.src += "\tvec4 color = texture2D(" + NAME_TEXTURE_SAMPLER + ", " + "vtexco" +");\n"
+        self.src += "\tvec4 color = texture2D(" + UNAME_TEXTURE_SAMPLER + ", " + "vtexco" +");\n"
+    def genAssignColor(self):
         self.src += "\tgl_FragColor = color;\n"
+    def genLightReflectionFunction(self):
+        #this works for diffuse only
+        s = ""
+        s += "vec3 mrAmbientLightColor = vec3(0.0, 0.0, 0.0);\n"
+        s += "const vec3 lightPos = vec3(1.0,1.0,1.0);\n"
+
+        s += "vec4 blinnPhongColor(vec4 diffColor) {\n"
+        s += "\tvec3 linearColor;\n"
+        s += "\tvec3 gammaCorrectedColor;\n"
+
+        s += "\tvec3 normal = normalize(vnormal);\n"
+        s += "\tvec3 viewDir = normalize(-vvert);\n"
+        s += "\tvec3 ambient = vambientColor * mrAmbientLightColor;\n"
+
+        s += "\tvec3 lightPos;\n"
+        s += "\tvec3 lightCol;\n"
+        s += "\tvec3 lightDir;\n"
+        s += "\tvec3 halfDir;\n"
+        s += "\tfloat distance;\n"
+        s += "\tfloat att;\n"
+        s += "\tfloat lambertian;\n"
+        s += "\tfloat specAngle;\n"
+
+        s += "\tfloat specular = 0.0;\n"
+        s += "\tfloat diffuse;\n"
+        s += "\tfloat shininnes = 16.0;\n"
+        s += "\tvec3 gammaVec = vec3(1.0/2.2);\n"
+
+        s += "\tlinearColor = ambient;\n"
+        for l in self.configurer.getLights():
+            lk = l.UniformKeys.getByGenerator(UNIFORMGENERATOR_LIGHT_POSITION)[0]
+            namePos = lk.getUniform().Name
+            ck = l.UniformKeys.getByGenerator(UNIFORMGENERATOR_LIGHT_COLOR)[0]
+            nameCol = ck.getUniform().Name
+            s += "\tlightPos = " + namePos + ".xyz;\n"
+            s += "\tlightCol = " + nameCol + ".xyz;\n"
+            s += "\tlightDir = normalize(lightPos - vvert);\n"
+            s += "\tdistance = length(lightPos - vvert);\n"
+            s += "\tatt = 1.0/(1.0+0.3*distance);\n"
+            s += "\tlambertian = max(dot(lightDir, normal), 0.1);\n"
+            s += "\tdiffuse = lambertian;\n"
+            s += "\tif (lambertian > 0.0) {\n"
+            s += "\t\thalfDir = normalize(lightDir + viewDir);\n"
+            s += "\t\tspecAngle = max(dot(halfDir, normal), 0.0);\n"
+            s += "\t\tspecular = pow(specAngle, 64.0);\n"
+            s += "\t}\n"
+            #Falta el light energy
+            #s += "\tlinearColor += att*(lambertian * diffColor.xyz * lightCol + specular * vspecularColor * lightCol);\n"
+            #this works for diffuse
+            s += "\tlinearColor += (diffuse * diffColor.xyz * lightCol);\n"
+            #s += "\tif (distance > 11.5) { linearColor = vec3(1.0,0.0,0.0);}\n"
+            #s += "\t else { linearColor += (diffuse * diffColor.xyz * lightCol);}\n"
+        s += "\tgammaCorrectedColor = pow(linearColor, gammaVec);\n"
+        s += "\treturn vec4(linearColor, 1.0);\n"
+        s += "}\n"
+        s += "\n"
+        self.src += s
+    def genCallToBlinnPhong(self):
+        self.src += "\tcolor = blinnPhongColor(color);\n"
     def genSource(self):
         self.genHeaders(at=False)
+        if self.configurer.hasLights():
+            self.genLightReflectionFunction()
         self.genMainOpen()
         if self.configurer.hasTextures():
             self.genColorFromTexture()
         elif self.configurer.hasMaterials():
             self.genColorFromMaterial()
+        if self.configurer.hasLights():
+            self.genCallToBlinnPhong()
+        self.genAssignColor()
         self.genMainClose()
         return self.src
 
@@ -1138,58 +1129,69 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
     def genMaterialColorOut(self):
         n = self.configurer.getMaterialsCount()
         if n > 1:
-            self.src += "\tint matIndexInt = int(" + NAME_MATERIAL + ");\n"
-            self.src += "\tvcolor = " + NAME_MATERIAL_DIFFUSE_COLOR +"[matIndexInt];\n"
+            self.src += "\tint matIndexInt = int(" + ANAME_MATERIAL + ");\n"
+            self.src += "\tvcolor = " + UNAME_MATERIAL_DIFFUSE_COLOR +"[matIndexInt];\n"
         else:
-            self.src += "\tvcolor = " + NAME_MATERIAL_DIFFUSE_COLOR + ";\n"
+            self.src += "\tvcolor = " + UNAME_MATERIAL_DIFFUSE_COLOR + ";\n"
     def genTextureOut(self):
-        self.src += "\tvtexco = " + NAME_TEXTURECO + ";\n"
-    def genApplyBonesFunction(self):
+        self.src += "\tvtexco = " + ANAME_TEXTURECO + ";\n"
+    def genSkinMatrixFunction(self):
         s = ""
-        s += "vec3 applyBones() {\n"
-        s += "\tvec4 indices = " + NAME_BIND + ";\n"
-        s += "\tvec4 w = " + NAME_WEIGHT + ";\n"
+        s += "mat4 getSkinMatrix() {\n"
+        s += "\tvec4 indices = " + ANAME_BIND + ";\n"
+        s += "\tvec4 w = " + ANAME_WEIGHT + ";\n"
         s += "\t if (int(indices.x) < 0) {\n"
-        s += "\t\treturn " + NAME_VERTEX + ";\n"
+        s += "\t\treturn mat4(1.0);\n"
         s += "\t}\n"
         if self.configurer.getBonesCount() == 1:
-            s += "\tmat4 mat = " + NAME_BONE_MATRIX + " * w.x;\n"
-            s += "\tvec4 v = mat * vec4(" + NAME_VERTEX + ",1);\n"
-            s += "\treturn vec3(v.x/v.w, v.y/v.w, v.z/v.w);\n"
+            s += "\tmat4 mat = " + UNAME_BONE_MATRIX + " * w.x;\n"
+            s += "\treturn mat;\n"
             s += "}\n"
             s += "\n"
             self.src += s
             return
-        s = ""
-        s += "vec3 applyBones() {\n"
-        s += "\tvec4 indices = " + NAME_BIND + ";\n"
-        s += "\tvec4 w = " + NAME_WEIGHT + ";\n"
-        s += "\t if (int(indices.x) < 0) {\n"
-        s += "\t\treturn " + NAME_VERTEX + ";\n"
-        s += "\t}\n"
-        s += "\tmat4 mat = " + NAME_BONE_MATRIX + "[int(indices.x)] * w.x;\n"
+        s += "\tmat4 mat = " + UNAME_BONE_MATRIX + "[int(indices.x)] * w.x;\n"
         s += "\tfor (int i = 1; i < 4; i++) {\n"
         s += "\t\tindices = indices.yzwx;\n"
         s += "\t\tw = w.yzwx;\n"
         s += "\t\tif (int(indices.x) > 0 && w.x > 0.0) {\n"
-        s += "\t\t\tmat = mat + " + NAME_BONE_MATRIX + "[int(indices.x)] * w.x;\n"
+        s += "\t\t\tmat = mat + " + UNAME_BONE_MATRIX + "[int(indices.x)] * w.x;\n"
         s += "\t\t}\n"
         s += "\t}\n"
-        s += "\tvec4 v = mat * vec4(" + NAME_VERTEX + ",1);\n"
-        s += "\treturn vec3(v.x/v.w, v.y/v.w, v.z/v.w);\n"
+        s += "\treturn mat;\n"
         s += "}\n"
         s += "\n"
         self.src += s
     def genMVPVertex(self):
-        self.src += "\tgl_Position = " + NAME_MVP + " * " + "vec4(" + NAME_VERTEX +",1);\n"
+        self.src += "\tgl_Position = " + UNAME_MVP_MATRIX + " * " + "vec4(" + ANAME_VERTEX +",1);\n"
     def genBoneApplyMVPVertex(self):
-        self.src += "\tvec3 pos = applyBones();\n"
-        self.src += "\tgl_Position = " + NAME_MVP + " * "+ "vec4(pos, 1);\n"
-
+        self.src += "\tmat4 skinMatrix = getSkinMatrix();\n"
+        self.src += "\tvec4 pos4 = skinMatrix * vec4(" + ANAME_VERTEX + ", 1);\n"
+        self.src += "\tvec3 pos = vec3(pos4)/pos4.w;\n"
+        self.src += "\tgl_Position = " + UNAME_MVP_MATRIX + " * vec4(pos, 1);\n"
+    def genLightRefractionVertex(self):
+        s = ""
+        if self.configurer.hasBones():
+            s += "\tvec4 surfPos = " + UNAME_MODELVIEW_MATRIX + " * " + "vec4(pos, 1);\n"
+            s += "\tvvert = vec3(surfPos)/surfPos.w;\n"
+            s += "\tmat3 auxMat = mat3(" + UNAME_MODELVIEW_MATRIX + " * " + "skinMatrix);\n"
+            s += "\tmat3 normalMatrix = transpose(inverse(auxMat));\n"
+            s += "\tvnormal = normalMatrix * " + ANAME_NORMAL + ";\n"
+        else:
+            s = ""
+            s += "\tvec4 surfPos = " + UNAME_MODELVIEW_MATRIX + " * " + "vec4(" + ANAME_VERTEX + ", 1);\n"
+            s += "\tvvert = vec3(surfPos)/surfPos.w;\n"
+            #s += "\tmat3 normalMatrix = mat3(" + UNAME_NORMAL_MATRIX + ");\n"
+            s += "\tmat3 normalMatrix = transpose(inverse(mat3(" + UNAME_MODELVIEW_MATRIX + ")));\n"
+            s += "\tvnormal = normalMatrix * " + ANAME_NORMAL + ";\n"
+        if self.configurer.hasMaterials():
+            s += "\tvambientColor = " + UNAME_MATERIAL_AMBIENT_COLOR + ".xyz;\n"
+            s += "\tvspecularColor = " + UNAME_MATERIAL_SPECULAR_COLOR + ".xyz;\n"
+        self.src += s
     def genSource(self):
         self.genHeaders()
         if self.configurer.hasBones():
-            self.genApplyBonesFunction()
+            self.genSkinMatrixFunction()
         self.genMainOpen()
         if self.configurer.hasTextures():
             self.genTextureOut()
@@ -1199,6 +1201,8 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
             self.genBoneApplyMVPVertex()
         else:
             self.genMVPVertex()
+        if self.configurer.hasLights():
+            self.genLightRefractionVertex()
         self.genMainClose()
         return self.src
 
@@ -1206,9 +1210,9 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
 class ShaderGenerator:
     counter = 0
     baseName = "ShaderProgram_"
-    def __init__(self, obj):
+    def __init__(self, obj, objectList=None):
         self.obj = obj
-        self.configurer = ShaderConfigurer(self.obj)
+        self.configurer = ShaderConfigurer(self.obj, objectList)
         self.name = self.__genName()
     def __genName(self):
         name = ShaderGenerator.baseName + str(ShaderGenerator.counter)
@@ -1228,6 +1232,7 @@ class ShaderGenerator:
         vs, fs = self.genSource()
         return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.uniforms.values(), vs, fs)
 
+#TODO: Change the Exporter.sceneObjectsList
 class ShaderConfigurer:
     def __init__(self, obj, objectList=None):
         self.obj = obj
@@ -1266,6 +1271,13 @@ class ShaderConfigurer:
         return UNIFORM_TEXTURE in self.uniforms
     def hasBones(self):
         return UNIFORM_BONE_MATRIX in self.uniforms
+    def hasLights(self):
+        b = len(self.objectList.getLights()) > 0
+        return b
+    def getLightsCount(self):
+        return len(self.objectList.getLights())
+    def getLights(self):
+        return self.objectList.getLights()
     def __getVaryingsOfObject(self):
         if isinstance(self.obj, Model):
             #if self.hasMultipleMaterialsAndTextures():
@@ -1274,9 +1286,13 @@ class ShaderConfigurer:
             #    return
             if self.hasTextures():
                 self.varyings.append("varying vec2 vtexco;")
-                return
-            if self.hasMaterials():
+            if self.hasMaterials() and not self.hasTextures():
                 self.varyings.append("varying vec4 vcolor;")
+            if self.hasLights():
+                self.varyings.append("varying vec3 vnormal;")
+                self.varyings.append("varying vec3 vvert;")
+                self.varyings.append("varying vec3 vambientColor;")
+                self.varyings.append("varying vec3 vspecularColor;")
     def __getAttributesOfObject(self):
         if isinstance(self.obj, Model):
             for key in self.obj.Mesh.AttributeKeys:
@@ -1284,14 +1300,31 @@ class ShaderConfigurer:
                 self.attributes[atr.Attribute] = atr
     def __getUniformsOfObject(self):
         for key in self.obj.UniformKeys:
-            unif = getUniformFromUniformKey(key)
+            unif = key.getUniform()
             self.uniforms[unif.Uniform] = unif
         if isinstance(self.obj, Model):
             self.__getModelUniforms()
     def __getModelUniforms(self):
         d = self.uniforms.copy()
-        d.pop(UNIFORM_MODEL, None)
-        self.vsuniforms[UNIFORM_MVP] = MVPUniform()
+        d.pop(UNIFORM_MODEL_MATRIX, None)
+        if (self.hasLights()):
+            self.vsuniforms[UNIFORM_MODELVIEW_MATRIX] = ModelViewMatrixUniformKey().getUniform()
+            fsmodelview = ModelViewMatrixUniformKey().getUniform()
+            fsmodelview.Name = "fs"+fsmodelview.Name
+            fsmodelview.Uniform = "FS_" + UNIFORM_MODELVIEW_MATRIX
+            #self.fsuniforms[fsmodelview.Uniform] = fsmodelview
+            if not self.hasBones():
+                self.vsuniforms[UNIFORM_NORMAL_MATRIX] = NormalMatrixUniformKey().getUniform()
+            #TODO: Solo funciona para una luz
+            for l in self.objectList.getLights():
+                for uk in l.UniformKeys:
+                    self.fsuniforms[uk.Uniform] = uk.getUniform()
+            #for i in range(self.getLightsCount()):
+            #    lpk = LightPositionKey(index=i)
+            #    lck = LightColorKey(index=i)
+            #    self.fsuniforms[lpk.Uniform] = LightPositionKey().getUniform()
+            #    self.fsuniforms[lck.Uniform] = LightColorKey().getUniform()
+        self.vsuniforms[UNIFORM_MVP_MATRIX] = MVPUniformKey().getUniform()
         for unif in d:
             if unif == UNIFORM_TEXTURE:
                 self.fsuniforms[UNIFORM_TEXTURE] = d[unif]
@@ -1507,20 +1540,22 @@ class TransformExporter:
             quat = m.to_euler().to_quaternion()
         else:
             #We need the rotation in Quaternion mode, so we force it
-            if self.ob.rotation_mode == 'QUATERNION':
-                quat = self.ob.rotation_quaternion.copy()
-            elif self.ob.rotation_mode != 'AXIS_ANGLES':
-                quat = self.ob.rotation_euler.to_quaternion()
-            else:
-                self.ob.rotation_mode = 'QUATERNION'
-                quat = self.ob.rotation_quaternion.copy()
+            #if self.ob.rotation_mode == 'QUATERNION':
+            #    quat = self.ob.rotation_quaternion.copy()
+            #elif self.ob.rotation_mode != 'AXIS_ANGLES':
+            #    quat = self.ob.rotation_euler.to_quaternion()
+            #else:
+            #    self.ob.rotation_mode = 'QUATERNION'
+            #    quat = self.ob.rotation_quaternion.copy()
+            quat = self.ob.matrix_world.decompose()[1]
         self.ob.rotation_mode = curMode
         return quat
     def export(self):
         t = self.outTrans
-        t.Location = [mround(e) for e in self.ob.location]
+        l, r, s = self.ob.matrix_world.decompose()
+        t.Location = [mround(e) for e in l]
         t.Rotation = [mround(e) for e in self.getRotation()]
-        t.Scale =    [mround(e) for e in self.ob.scale]
+        t.Scale =    [mround(e) for e in s]
 
 class MaterialsExporter:
     def __init__(self, ob, model, outMaterials):
@@ -1582,8 +1617,8 @@ class ModelExporter:
     def setName(self):
         self.outModel.setName(self.meshOb.name)
     def setShader(self):
-        #self.outModel.ShaderProgram = BasicShader
-        self.outModel.ShaderProgram = ShaderGenerator(self.outModel).genShaderProgram()
+        #TODO: Change the Exporter here!!!
+        self.outModel.ShaderProgram = ShaderGenerator(self.outModel, Exporter.sceneObjectsList).genShaderProgram()
     def getSkeleton(self):
         for mod in self.meshOb.modifiers:
             if mod.type == 'ARMATURE':
@@ -1746,7 +1781,7 @@ class SingleSkeletalActionExporter:
                 frame.addBone(bone)
             self.outAction.addKeyFrame(frame)
     def setFps(self):
-        self.outAction.FPS = ACTION_FPS
+        self.outAction.FPS = C.scene.render.fps
     def export(self):
         self.setAction()
         self.setFps()
@@ -1910,6 +1945,8 @@ class SceneExporter:
             return
         keys.addUniformKey(LightsPositionArrayKey(len(lights)))
         keys.addUniformKey(LightsColorArrayKey(len(lights)))
+        keys.addUniformKey(ModelViewMatrixUniformKey())
+        keys.addUniformKey(NormalMatrixUniformKey())
     def setUniformKeys(self):
         keys = self.outScene.UniformKeys
         keys.addUniformKey(MVPUniformKey())
