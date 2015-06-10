@@ -183,6 +183,8 @@ SCENE_CLEARCOLOR = [0.5,0.5,0.5,1.0]
 ORDER = {ATTRNAME_VERTEX: 0, ATTRNAME_NORMAL: 1, ATTRNAME_MATERIAL:2, ATTRNAME_TEXTURE: 3, ATTRNAME_WEIGHT: 4, ATTRNAME_BIND: 5}
 DATATYPE_SIZES = {DATATYPE_FLOAT: 1, DATATYPE_INT: 1, DATATYPE_VEC2: 2, DATATYPE_VEC3: 3, DATATYPE_VEC4: 4, DATATYPE_MAT3: 9, DATATYPE_MAT4: 16}
 
+def cleanName(name):
+    return name.replace(".","_").replace("-","_")
 
 def getDataSize(dataType):
     return DATATYPE_SIZES[dataType]
@@ -468,20 +470,23 @@ class UniformKey:
         self.Generator = Generator
         self.Uniform = Uniform
         self.Level = level
-        self.Count = Count
+        self.count = Count
         self.Index = Index
         if self.Index > 0:
             self.Uniform += "_"+str(self.Index)
         self.uniformName = None
         self.uniformDataType = None
+    def getCount(self):
+        return self.count
     def getUniform(self):
         if self.Index > 0:
             self.uniformName += str(self.Index)
-        return Uniform(self.Uniform, self.uniformName, self.Count, self.uniformDataType)
+        return Uniform(self.Uniform, self.uniformName, self.count, self.uniformDataType)
     def __iter__(self):
         d = self.__dict__.copy()
         d.pop('uniformName')
         d.pop('uniformDataType')
+        d.pop('count')
         yield from d.items()
 
 class UniformKeyList:
@@ -618,7 +623,7 @@ class SceneObj:
         self.UniformKeys = UniformKeyList()
         self.ShaderProgram = None
     def setName(self, name):
-        self.Name = name
+        self.Name = cleanName(name)
     def __iter__(self):
         yield from self.__dict__.items()
 
@@ -1049,14 +1054,17 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
     def genLightReflectionFunction(self):
         #this works for diffuse only
         s = ""
+        s += "precision highp float;\n"
         s += "vec3 mrAmbientLightColor = vec3(0.0, 0.0, 0.0);\n"
 
         s += "vec4 blinnPhongColor(vec4 diffColor) {\n"
         s += "\tvec3 linearColor;\n"
         s += "\tvec3 gammaCorrectedColor;\n"
 
-        s += "\tvec3 normal = normalize(vnormal);\n"
+        s += "\tvec3 normal = vnormal;\n"
+        s += "\tnormal = normal/length(normal);\n"
         s += "\tvec3 viewDir = normalize(-vvert);\n"
+        s += "\tviewDir = viewDir/length(viewDir);\n"
         s += "\tvec3 ambient = vambientColor * mrAmbientLightColor;\n"
 
         s += "\tvec3 lightPos;\n"
@@ -1081,7 +1089,8 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
             nameCol = ck.getUniform().Name
             s += "\tlightPos = " + namePos + ".xyz;\n"
             s += "\tlightCol = " + nameCol + ".xyz;\n"
-            s += "\tlightDir = normalize(lightPos - vvert);\n"
+            s += "\tlightDir = lightPos - vvert;\n"
+            s += "\tlightDir = lightDir/length(lightDir);\n"
             s += "\tdistance = length(lightPos - vvert);\n"
             s += "\tatt = 1.0/(1.0+0.3*distance);\n"
             s += "\tlambertian = max(dot(lightDir, normal), 0.0);\n"
@@ -1089,13 +1098,13 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
             s += "\tif (lambertian > 0.0) {\n"
             s += "\t\thalfDir = normalize(lightDir + viewDir);\n"
             s += "\t\tspecAngle = max(dot(halfDir, normal), 0.0);\n"
-            s += "\t\tspecular = pow(specAngle, 64.0);\n"
+            s += "\t\tspecular = pow(specAngle, 50.0);\n"
             s += "\t}\n"
             #Falta el light energy
             #s += "\tlinearColor += att*(lambertian * diffColor.xyz * lightCol + specular * vspecularColor * lightCol);\n"
             #this works for diffuse
-            s += "\tlinearColor += (diffuse * diffColor.xyz * lightCol + specular * vspecularColor * lightCol);\n"
-            #s += "\tif (distance > 11.5) { linearColor = vec3(1.0,0.0,0.0);}\n"
+            s += "\tlinearColor += att * (diffuse * diffColor.xyz * lightCol  +  0.5 * specular * vspecularColor * lightCol);\n"
+            #s += "\tif (lambertian > 1.1) { linearColor = vec3(1.0,0.0,0.0);}\n"
             #s += "\t else { linearColor += (diffuse * diffColor.xyz * lightCol);}\n"
         s += "\tgammaCorrectedColor = pow(linearColor, gammaVec);\n"
         s += "\treturn vec4(gammaCorrectedColor, 1.0);\n"
@@ -1171,17 +1180,17 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
     def genLightRefractionVertex(self):
         s = ""
         if self.configurer.hasBones():
-            s += "\tvec4 surfPos = " + UNAME_MODELVIEW_MATRIX + " * " + "vec4(pos, 1);\n"
+            s += "\tvec4 surfPos = " + UNAME_MODEL_MATRIX + " * " + "vec4(pos, 1);\n"
             s += "\tvvert = vec3(surfPos)/surfPos.w;\n"
-            s += "\tmat3 auxMat = mat3(" + UNAME_MODELVIEW_MATRIX + " * " + "skinMatrix);\n"
+            s += "\tmat3 auxMat = mat3(" + UNAME_MODEL_MATRIX + " * " + "skinMatrix);\n"
             s += "\tmat3 normalMatrix = transpose(inverse(auxMat));\n"
             s += "\tvnormal = normalMatrix * " + ANAME_NORMAL + ";\n"
         else:
             s = ""
-            s += "\tvec4 surfPos = " + UNAME_MODELVIEW_MATRIX + " * " + "vec4(" + ANAME_VERTEX + ", 1);\n"
+            s += "\tvec4 surfPos = " + UNAME_MODEL_MATRIX + " * " + "vec4(" + ANAME_VERTEX + ", 1);\n"
             s += "\tvvert = vec3(surfPos)/surfPos.w;\n"
             #s += "\tmat3 normalMatrix = mat3(" + UNAME_NORMAL_MATRIX + ");\n"
-            s += "\tmat3 normalMatrix = transpose(inverse(mat3(" + UNAME_MODELVIEW_MATRIX + ")));\n"
+            s += "\tmat3 normalMatrix = transpose(inverse(mat3(" + UNAME_MODEL_MATRIX + ")));\n"
             s += "\tvnormal = normalMatrix * " + ANAME_NORMAL + ";\n"
         if self.configurer.hasMaterials():
             s += "\tvambientColor = " + UNAME_MATERIAL_AMBIENT_COLOR + ".xyz;\n"
@@ -1211,7 +1220,8 @@ class ShaderConfigurer:
         self.obj = obj
         self.objectList = objectList
         self.attributes = dict()
-        self.uniforms = dict()
+        self.uniforms = list()
+        self.uniformsDict = dict()
         self.vsuniforms = dict()
         self.fsuniforms = dict()
         self.varyings = list()
@@ -1221,29 +1231,29 @@ class ShaderConfigurer:
     def getUniforms(self):
         return self.uniforms
     def getVsUniforms(self):
-        return self.vsuniforms
+        return self.vsuniforms.values()
     def getFsUniforms(self):
-        return self.fsuniforms
+        return self.fsuniforms.values()
     def getAttributes(self):
         return self.attributes
     def getVaryings(self):
         return self.varyings
     def getMaterialsCount(self):
-        if UNIFORM_MATERIAL_DIFFUSE_COLOR not in self.uniforms:
+        if UNIFORM_MATERIAL_DIFFUSE_COLOR not in self.uniformsDict:
             return 0
-        return self.uniforms[UNIFORM_MATERIAL_DIFFUSE_COLOR].Count
+        return self.uniformsDict[UNIFORM_MATERIAL_DIFFUSE_COLOR].Count
     def getBonesCount(self):
-        if UNIFORM_BONE_MATRIX not in self.uniforms:
+        if UNIFORM_BONE_MATRIX not in self.uniformsDict:
             return 0
-        return self.uniforms[UNIFORM_BONE_MATRIX].Count
+        return self.uniformsDict[UNIFORM_BONE_MATRIX].Count
     def hasMaterials(self):
-        return UNIFORM_MATERIAL_DIFFUSE_COLOR in self.uniforms
+        return UNIFORM_MATERIAL_DIFFUSE_COLOR in self.uniformsDict
     def hasMultipleMaterialsAndTextures(self):
-        return UNIFORM_TEXTURE in self.uniforms and self.uniforms[UNIFORM_MATERIAL_DIFFUSE_COLOR].Count > 1
+        return UNIFORM_TEXTURE in self.uniformsDict and self.uniformsDict[UNIFORM_MATERIAL_DIFFUSE_COLOR].Count > 1
     def hasTextures(self):
-        return UNIFORM_TEXTURE in self.uniforms
+        return UNIFORM_TEXTURE in self.uniformsDict
     def hasBones(self):
-        return UNIFORM_BONE_MATRIX in self.uniforms
+        return UNIFORM_BONE_MATRIX in self.uniformsDict
     def hasLights(self):
         b = len(self.objectList.getLights()) > 0
         return b
@@ -1274,18 +1284,18 @@ class ShaderConfigurer:
     def __getUniformsOfObject(self):
         for key in self.obj.UniformKeys:
             unif = key.getUniform()
-            self.uniforms[unif.Uniform] = unif
+            self.uniformsDict[unif.Uniform] = unif
         if isinstance(self.obj, Model):
             self.__getModelUniforms()
     def __getModelUniforms(self):
-        d = self.uniforms.copy()
+        d = self.uniformsDict.copy()
         #d.pop(UNIFORM_MODEL_MATRIX, None)
         if (self.hasLights()):
             self.vsuniforms[UNIFORM_MODELVIEW_MATRIX] = ModelViewMatrixUniformKey().getUniform()
-            #fsmodelview = ModelViewMatrixUniformKey().getUniform()
-            #fsmodelview.Name = "fs"+fsmodelview.Name
+            fsmodelview = ModelViewMatrixUniformKey().getUniform()
+            fsmodelview.Name = "fs"+fsmodelview.Name
             #fsmodelview.Uniform = "FS_" + UNIFORM_MODELVIEW_MATRIX
-            #self.fsuniforms[fsmodelview.Uniform] = fsmodelview
+            self.fsuniforms[fsmodelview.Uniform] = fsmodelview
             if not self.hasBones():
                 self.vsuniforms[UNIFORM_NORMAL_MATRIX] = NormalMatrixUniformKey().getUniform()
             #TODO: Solo funciona para una luz
@@ -1303,8 +1313,10 @@ class ShaderConfigurer:
                 self.fsuniforms[UNIFORM_TEXTURE] = d[unif]
             else:
                 self.vsuniforms[unif] = d[unif]
-        self.uniforms = self.vsuniforms.copy()
-        self.uniforms.update(self.fsuniforms)
+        self.uniformsDict = self.vsuniforms.copy()
+        self.uniformsDict.update(self.fsuniforms)
+        self.uniforms.extend(self.vsuniforms.values())
+        self.uniforms.extend(self.fsuniforms.values())
 
 
 class ShaderGenerator:
@@ -1330,7 +1342,7 @@ class ShaderGenerator:
         return vs, fs
     def genShaderProgram(self):
         vs, fs = self.genSource()
-        return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.uniforms.values(), vs, fs)
+        return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.getUniforms(), vs, fs)
 
 
 #TODO: All exporters should have a method export with an out object?
@@ -1354,7 +1366,7 @@ class MeshExporter:
         self.addUVKey()
         self.addArmatureKey()
     def setName(self):
-        self.outMesh.Name = self.mesh.name
+        self.outMesh.Name = cleanName(self.mesh.name)
     def addVertexKey(self):
         """Add vertex coordinates key, it always exists"""
         self.outMesh.addKey(VertexKey())
