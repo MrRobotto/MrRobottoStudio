@@ -26,9 +26,9 @@
                 <!-- /.row -->
                 <div class="row">
                     <div class="col-lg-12">
-                        {% if blender %}
+                        {% if blenderexe %}
                             <div class="alert alert-success alert-dismissable">
-                                Blender is located on: <b>{{ blender }}</b>
+                                Blender is located on: <b>{{ blenderexe.file_path }}</b>
                                 <a class="btn btn-default pull-right" href="/blender-config">
                                     Change location
                                 </a>
@@ -46,9 +46,9 @@
 
                 <div class="row">
                     <div class="col-lg-12">
-                        {% if blender_file %}
+                        {% if blendfile %}
                             <div class="alert alert-success alert-dismissable">
-                                Blender file selected: <b>{{ blender_file }}</b>
+                                Blender file selected: <b>{{ blendfile.file_path }}</b>
                                 <a class="btn btn-default pull-right" href="/blender-file">
                                     Change location
                                 </a>

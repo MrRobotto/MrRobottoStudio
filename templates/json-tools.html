@@ -86,25 +86,23 @@
         </div>
     </div>
     <!-- /.row -->
-    {% if current_blend %}
+    {% if blendfile %}
         <div class="row">
             <div class="col-md-12 alert alert-success">
                 <form class="form-inline" method="post">
                     <button type="submit" name="export" class="btn btn-default">Export</button>
-                    Current blender file: <b>{{ current_blend }}</b>
-                    {% csrf_token %}
+                    Current blender file: <b>{{ blendfile.file_path }}</b>
                 </form>
             </div>
         </div>
     {% endif %}
 
-    {% if current_mrr %}
+    {% if mrr %}
         <div id="upload-panel" class="row">
             <div class="col-md-12 alert alert-success">
                 <form class="form-inline" method="post">
                     <button type="submit" name="upload" class="btn btn-default">Upload</button>
-                    Current MRR file: <b>{{ current_mrr }}</b>
-                    {% csrf_token %}
+                    Current MRR file: <b>{{ mrr.file_path }}</b>
                 </form>
             </div>
         </div>
@@ -115,9 +113,9 @@
         </div>
     {% endif %}
 
-    {% if current_mrr %}
+    {% if mrr %}
         <div class="panel-group" id="accordion">
-            {% for obj in scene %}
+            {% for obj in mrr.reduced %}
                 {% include "scene-object.html" with obj=obj %}
             {% endfor %}
         </div>
@@ -125,7 +123,7 @@
 
     <!--<form class=" save-changes" style="display: inline;" method="post">
         <button type="submit" name="save" class="btn btn-success">Save changes</button>
-        {% csrf_token %}
+
     </form>-->
     <button id="save-btn" name="save" class="btn btn-success save-changes" style="display: inline;">
         Save changes
@@ -159,7 +157,7 @@
         var editor = new JSONEditor(container, {'mode':'form','search':false});
 
         {% autoescape off %}
-        var json = {{ json }};
+        var json = {{ mrr.reduced|safe }};
         {% endautoescape %}
         editor.set(json);
 
@@ -174,12 +172,10 @@
         // get json
     </script>
 
-
-
     <script>
         var getNewData = function() {
             var newData = {};
-            {% for name, d in scene_json.items %}
+            {% for name, d in mrr.objects_dict.items %}
                 var obj_{{ name }} = {{ d.json|safe }};
                 {% if d.obj.ShaderProgram %}
                     obj_{{ name }}.ShaderProgram.VertexShaderSource = vseditor_{{ name }}.getSession().getValue();
@@ -190,13 +186,10 @@
             console.log(newData);
             return JSON.stringify(newData);
         };
-        $(document).ready(function() {
-            $("#save-btn").click(function() {
-                console.log("HHOLAAAAAA");
-                $.post("/studio/json-tools",
-                        {save: getNewData()}
-                );
-            });
+        $("#save-btn").click(function() {
+            $.post("/studio/json-tools",
+                    {save: getNewData()}
+            );
         });
     </script>
 

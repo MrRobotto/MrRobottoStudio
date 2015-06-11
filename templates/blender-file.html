@@ -11,12 +11,12 @@
     </div>
     <!-- /.row -->
 
-    {% if current %}
+    {% if blendfile %}
         <div class="row">
             <div class="col-md-12 alert alert-success">
                 <form class="form-inline" method="post">
                     <button type="submit" name="export" class="btn btn-default">Export</button>
-                    Current blender file: <b>{{ current }}</b>
+                    Current blender file: <b>{{ blendfile.file_path }}</b>
                     {% csrf_token %}
                 </form>
             </div>
@@ -26,7 +26,7 @@
     <div class="row">
         <div class="panel panel-default">
             <!-- Default panel contents -->
-            <div class="panel-heading">{{ dirname }}</div>
+            <div class="panel-heading">{{ blendfile_explorer.dir_path }}</div>
             <ul class="list-group">
                 <li class="list-group-item">
                     <form class="form-inline" method="POST">
@@ -42,7 +42,7 @@
                         {% csrf_token %}
                     </form>
                 </li>
-                {% for folder in folders %}
+                {% for folder in blendfile_explorer.folders %}
                     <li class="list-group-item">
                         <form class="form-inline" method="POST">
                             <div class="row">
@@ -61,7 +61,7 @@
             </ul>
 
             <ul class="list-group">
-                {% for file in files %}
+                {% for file in blendfile_explorer.files %}
                     <li class="list-group-item">
                         <form class="form-inline" method="POST">
                             <div class="row">
