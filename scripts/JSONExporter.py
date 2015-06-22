@@ -79,12 +79,12 @@ UNIFORMGENERATOR_MODELVIEW_MATRIX = "Generator_Model_View_Matrix"
 UNIFORMGENERATOR_NORMAL_MATRIX = "Generator_Normal_Matrix"
 UNIFORMGENERATOR_TMV_MATRIX = "Generator_Transp_Model_View_Matrix"
 UNIFORMGENERATOR_ITMV_MATRIX = "Generator_Inverse_Transp_Model_View_Matrix"
-UNIFORMGENERATOR_MATERIAL_AMBIENT_COLOR = "Generator_Ambient_Color"
-UNIFORMGENERATOR_MATERIAL_AMBIENT_INTENSITY = "Generator_Ambient_Intensity"
-UNIFORMGENERATOR_MATERIAL_DIFFUSE_COLOR = "Generator_Diffuse_Color"
-UNIFORMGENERATOR_MATERIAL_DIFFUSE_INTENSITY = "Generator_Diffuse_Intensity"
-UNIFORMGENERATOR_MATERIAL_SPECULAR_COLOR = "Generator_Specular_Color"
-UNIFORMGENERATOR_MATERIAL_SPECULAR_INTENSITY = "Generator_Specular_Intensity"
+UNIFORMGENERATOR_MATERIAL_AMBIENT_COLOR = "Generator_Material_Ambient_Color"
+UNIFORMGENERATOR_MATERIAL_AMBIENT_INTENSITY = "Generator_Material_Ambient_Intensity"
+UNIFORMGENERATOR_MATERIAL_DIFFUSE_COLOR = "Generator_Material_Diffuse_Color"
+UNIFORMGENERATOR_MATERIAL_DIFFUSE_INTENSITY = "Generator_Material_Diffuse_Intensity"
+UNIFORMGENERATOR_MATERIAL_SPECULAR_COLOR = "Generator_Material_Specular_Color"
+UNIFORMGENERATOR_MATERIAL_SPECULAR_INTENSITY = "Generator_Material_Specular_Intensity"
 UNIFORMGENERATOR_BONE_MATRIX = "Generator_Bone_Matrix"
 UNIFORMGENERATOR_TEXTURED_MATERIAL = "Generator_Textured_Material"
 UNIFORMGENERATOR_TEXTURE = "Generator_Texture_Sampler"
@@ -101,12 +101,12 @@ UNIFORM_MODELVIEW_MATRIX = "Model_View_Matrix"
 UNIFORM_NORMAL_MATRIX = "Normal_Matrix"
 UNIFORM_TMV_MATRIX = "Transp_Model_View_Matrix"
 UNIFORM_ITMV_MATRIX = "Inverse_Transp_Model_View_Matrix"
-UNIFORM_MATERIAL_AMBIENT_COLOR = "Ambient_Color"
-UNIFORM_MATERIAL_AMBIENT_INTENSITY = "Ambient_Intensity"
-UNIFORM_MATERIAL_DIFFUSE_COLOR = "Diffuse_Color"
-UNIFORM_MATERIAL_DIFFUSE_INTENSITY = "Diffuse_Intensity"
-UNIFORM_MATERIAL_SPECULAR_COLOR = "Specular_Color"
-UNIFORM_MATERIAL_SPECULAR_INTENSITY = "Specular_Intensity"
+UNIFORM_MATERIAL_AMBIENT_COLOR = "Material_Ambient_Color"
+UNIFORM_MATERIAL_AMBIENT_INTENSITY = "Material_Ambient_Intensity"
+UNIFORM_MATERIAL_DIFFUSE_COLOR = "Material_Diffuse_Color"
+UNIFORM_MATERIAL_DIFFUSE_INTENSITY = "Material_Diffuse_Intensity"
+UNIFORM_MATERIAL_SPECULAR_COLOR = "Material_Specular_Color"
+UNIFORM_MATERIAL_SPECULAR_INTENSITY = "Material_Specular_Intensity"
 UNIFORM_BONE_MATRIX = "Bone_Matrix"
 UNIFORM_TEXTURED_MATERIAL = "Textured_Material"
 UNIFORM_TEXTURE = "Texture_Sampler"
@@ -355,10 +355,8 @@ class GeometryList:
 #TODO: Remove Name and Index
 class AttributeKey:
     """AttributeKey class for saving OGL attributes in an standard format"""
-    def __init__(self, AttributeName, Name, Index, DataSize, DataType):
+    def __init__(self, AttributeName, DataSize, DataType):
         self.Attribute = AttributeName
-        self.Name = Name
-        self.Index = Index
         self.Size = DataSize
         self.DataType = DataType
         self.Pointer = 0
@@ -470,23 +468,22 @@ class UniformKey:
         self.Generator = Generator
         self.Uniform = Uniform
         self.Level = level
-        self.count = Count
+        self.Count = Count
         self.Index = Index
         if self.Index > 0:
             self.Uniform += "_"+str(self.Index)
         self.uniformName = None
         self.uniformDataType = None
     def getCount(self):
-        return self.count
+        return self.Count
     def getUniform(self):
         if self.Index > 0:
             self.uniformName += str(self.Index)
-        return Uniform(self.Uniform, self.uniformName, self.count, self.uniformDataType)
+        return Uniform(self.Uniform, self.uniformName, self.Count, self.uniformDataType)
     def __iter__(self):
         d = self.__dict__.copy()
         d.pop('uniformName')
         d.pop('uniformDataType')
-        d.pop('count')
         yield from d.items()
 
 class UniformKeyList:
@@ -541,8 +538,11 @@ class AttributeList:
         yield from self.attributes.values()
 
 class ShaderProgram:
-    def __init__(self,Name,attributes,uniforms,vssource,fssource):
+    def __init__(self, Name, configurer, vssource, fssource):
         self.Name = Name
+        self.configurer = configurer
+        attributes = configurer.attributes.values()
+        uniforms = configurer.getUniforms()
         self.VertexShaderSource = vssource
         self.FragmentShaderSource = fssource
         self.Attributes = AttributeList()
@@ -556,7 +556,9 @@ class ShaderProgram:
     def addAttribute(self, attr):
         self.Attributes.addAttribute(attr)
     def __iter__(self):
-        yield from self.__dict__.items()
+        d = self.__dict__.copy()
+        d.pop("configurer")
+        yield from d.items()
 
 
 
@@ -800,6 +802,10 @@ class SceneObjectsList:
         if SCENEOBJTYPE_LIGHT in self.byType:
             return self.byType[SCENEOBJTYPE_LIGHT]
         return []
+    def getModels(self):
+        if SCENEOBJTYPE_MODEL in self.byType:
+            return self.byType[SCENEOBJTYPE_MODEL]
+        return []
     def addTexture(self, texture):
         self.textures[texture.Name] = texture
     def getTextures(self):
@@ -856,27 +862,27 @@ class BIndAttribute(Attribute):
 
 class VertexKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_VERTEX, ANAME_VERTEX, INDEX_VERTEX, SIZEKEY_VERTEX, DATATYPEKEY_VERTEX)
+        AttributeKey.__init__(self,ATTRNAME_VERTEX, SIZEKEY_VERTEX, DATATYPEKEY_VERTEX)
 
 class NormalKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_NORMAL, ANAME_NORMAL, INDEX_NORMAL, SIZEKEY_NORMAL ,DATATYPEKEY_NORMAL)
+        AttributeKey.__init__(self,ATTRNAME_NORMAL, SIZEKEY_NORMAL ,DATATYPEKEY_NORMAL)
 
 class MaterialKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_MATERIAL, ANAME_MATERIAL, INDEX_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
+        AttributeKey.__init__(self,ATTRNAME_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
 
 class TextureKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_TEXTURE, ANAME_TEXTURECO, INDEX_TEXTURE, SIZEKEY_TEXTURE, DATATYPEKEY_TEXTURE)
+        AttributeKey.__init__(self,ATTRNAME_TEXTURE, SIZEKEY_TEXTURE, DATATYPEKEY_TEXTURE)
 
 class WeightKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_WEIGHT, ANAME_WEIGHT, INDEX_WEIGHT, SIZEKEY_WEIGHT, DATATYPEKEY_WEIGHT)
+        AttributeKey.__init__(self,ATTRNAME_WEIGHT, SIZEKEY_WEIGHT, DATATYPEKEY_WEIGHT)
 
 class BIndKey(AttributeKey):
     def __init__(self):
-        AttributeKey.__init__(self,ATTRNAME_BIND, ANAME_BIND, INDEX_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
+        AttributeKey.__init__(self,ATTRNAME_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
 
 
 
@@ -909,7 +915,7 @@ class ModelViewMatrixUniformKey(UniformKey):
 
 class NormalMatrixUniformKey(UniformKey):
     def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_NORMAL_MATRIX, UNIFORM_NORMAL_MATRIX, RENDERING_LEVEL_TOP_SCENE_LEVEL, 1)
+        UniformKey.__init__(self, UNIFORMGENERATOR_NORMAL_MATRIX, UNIFORM_NORMAL_MATRIX, RENDERING_LEVEL_SCENE, 1)
         self.uniformName = UNAME_NORMAL_MATRIX
         self.uniformDataType = DATATYPE_MAT4
 
@@ -1014,7 +1020,7 @@ def getAttributeFromAttributeKey(attrib):
 
 
 
-VoidShader = ShaderProgram("VoidShader", [],[],"","")
+#VoidShader = ShaderProgram("VoidShader", [],[],"","")
 
 class ShaderSourceGeneratorBase:
     def __init__(self, configurer, uniforms):
@@ -1054,7 +1060,7 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
     def genLightReflectionFunction(self):
         #this works for diffuse only
         s = ""
-        s += "precision highp float;\n"
+        #s += "precision highp float;\n"
         s += "vec3 mrAmbientLightColor = vec3(0.0, 0.0, 0.0);\n"
 
         s += "vec4 blinnPhongColor(vec4 diffColor) {\n"
@@ -1113,7 +1119,10 @@ class FragmentShaderSourceGenerator(ShaderSourceGeneratorBase):
         self.src += s
     def genCallToBlinnPhong(self):
         self.src += "\tcolor = blinnPhongColor(color);\n"
+    def genPrecission(self):
+        self.src += "precision highp float;\n"
     def genSource(self):
+        self.genPrecission()
         self.genHeaders(at=False)
         if self.configurer.hasLights():
             self.genLightReflectionFunction()
@@ -1189,8 +1198,8 @@ class VertexShaderSourceGenerator(ShaderSourceGeneratorBase):
             s = ""
             s += "\tvec4 surfPos = " + UNAME_MODEL_MATRIX + " * " + "vec4(" + ANAME_VERTEX + ", 1);\n"
             s += "\tvvert = vec3(surfPos)/surfPos.w;\n"
-            #s += "\tmat3 normalMatrix = mat3(" + UNAME_NORMAL_MATRIX + ");\n"
-            s += "\tmat3 normalMatrix = transpose(inverse(mat3(" + UNAME_MODEL_MATRIX + ")));\n"
+            s += "\tmat3 normalMatrix = mat3(" + UNAME_NORMAL_MATRIX + ");\n"
+            #s += "\tmat3 normalMatrix = transpose(inverse(mat3(" + UNAME_MODEL_MATRIX + ")));\n"
             s += "\tvnormal = normalMatrix * " + ANAME_NORMAL + ";\n"
         if self.configurer.hasMaterials():
             s += "\tvambientColor = " + UNAME_MATERIAL_AMBIENT_COLOR + ".xyz;\n"
@@ -1228,6 +1237,29 @@ class ShaderConfigurer:
         self.__getAttributesOfObject()
         self.__getUniformsOfObject()
         self.__getVaryingsOfObject()
+    def getCharacteristicVector(self):
+        d = dict()
+        if self.hasLights():
+            d["Lights"] = self.getLightsCount()
+        if self.hasTextures():
+            d["Textures"] = 1
+        if self.hasMaterials():
+            d["Materials"] = self.getMaterialsCount()
+        if self.hasBones():
+            d["Bones"] = self.getBonesCount()
+        return d
+    def updateWithCharacteristicVector(self, v):
+        def updateUniform(keyName, value, uniforms):
+            for u in uniforms:
+                if keyName in u.Uniform.lower():
+                    u.Count = value
+        for key in v:
+            if key == "Lights":
+                updateUniform("light", v[key], self.uniforms)
+            if key == "Materials":
+                updateUniform("material", v[key], self.uniforms)
+            if key == "Bones":
+                updateUniform("bone", v[key], self.uniforms)
     def getUniforms(self):
         return self.uniforms
     def getVsUniforms(self):
@@ -1342,7 +1374,7 @@ class ShaderGenerator:
         return vs, fs
     def genShaderProgram(self):
         vs, fs = self.genSource()
-        return ShaderProgram(self.name, self.configurer.attributes.values(), self.configurer.getUniforms(), vs, fs)
+        return ShaderProgram(self.name, self.configurer, vs, fs)
 
 
 #TODO: All exporters should have a method export with an out object?
@@ -1640,6 +1672,7 @@ class ModelExporter:
     def setUniformKeys(self):
         keys = self.outModel.UniformKeys
         keys.addUniformKey(ModelMatrixUniformKey())
+        keys.addUniformKey(NormalMatrixUniformKey())
         mesh = self.outModel.Mesh
         #TODO: Obtener los materiales del meshob y listos
         materials = self.outModel.Materials
@@ -1943,6 +1976,76 @@ class LightExporter:
         self.setUniformKeys()
 
 
+class ShaderOrganizer:
+    def __init__(self, models):
+        self.modelsDict = {m.Name : m for m in models}
+        self.shadersDict = {m.Name : m.ShaderProgram for m in models}
+    def areEquals(self, d1, d2):
+        if len(d1) != len(d2):
+            return False
+        for k in d1.keys():
+            if not k in d2.keys():
+                return False
+        return True
+    def isGreater(self, d1, d2):
+        for k in d1:
+            if d1[k] < d2[k]:
+                return False
+        return True
+    def getGreater(self, d1, d2):
+        d = dict()
+        for k in d1:
+            d[k] = max(d1[k], d2[k])
+        return d
+    def updateConfigurer(self, s, shaders):
+        v = s.configurer.getCharacteristicVector()
+        for r in shaders:
+            w = r.configurer.getCharacteristicVector()
+            if self.areEquals(v, w):
+                v = self.getGreater(v, w)
+        s.configurer.updateWithCharacteristicVector(v)
+    def setMaxShader(self):
+        for shader in self.shadersDict.values():
+            self.updateConfigurer(shader, self.shadersDict.values())
+        aux = list()
+        for model in self.modelsDict.values():
+            v = model.ShaderProgram.configurer.getCharacteristicVector()
+            #Checks if it is already hashed
+            inside = False
+            l = None
+            for e in aux:
+                k = e[0]
+                if self.areEquals(k, v):
+                    inside = True
+                    l = e[1]
+                    break
+            if inside:
+                l.append(model)
+            else:
+                aux.append((v, [model]))
+        baseName = "ShaderProgram_"
+        i = 0
+        for e in aux:
+            l = e[1]
+            configurer = l[0].ShaderProgram.configurer
+            vs = VertexShaderSourceGenerator(configurer).genSource()
+            fs = FragmentShaderSourceGenerator(configurer).genSource()
+            name = baseName + str(i)
+            i = i+1
+            program = ShaderProgram(name, configurer, vs, fs)
+            for m in l:
+                m.ShaderProgram = program
+
+    def getMaxShader(self, s, shaders):
+        v = s.configurer.getCharacteristicVector()
+        m = s
+        for r in shaders:
+            w = r.configurer.getCharacteristicVector()
+            if self.areEquals(v, w):
+                if self.isGreater(v, w):
+                    m = r
+        return m
+
 
 class SceneExporter:
     def __init__(self, outScene):
@@ -1955,7 +2058,7 @@ class SceneExporter:
         keys.addUniformKey(LightsPositionArrayKey(len(lights)))
         keys.addUniformKey(LightsColorArrayKey(len(lights)))
         keys.addUniformKey(ModelViewMatrixUniformKey())
-        keys.addUniformKey(NormalMatrixUniformKey())
+        #keys.addUniformKey(NormalMatrixUniformKey())
     def setUniformKeys(self):
         keys = self.outScene.UniformKeys
         keys.addUniformKey(MVPUniformKey())
@@ -1986,6 +2089,8 @@ class SceneObjectsListExporter:
             model = Model()
             ModelExporter(obj, model).export()
             self.outList.addSceneObj(model, scene)
+        organizer = ShaderOrganizer(self.outList.getModels())
+        organizer.setMaxShader()
         SceneExporter(scene).export()
 
 

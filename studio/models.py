@@ -199,7 +199,15 @@ class AndroidDevice(models.Model):
     def connect(self):
         self.is_connected = True
         self.last_connection = timezone.now()
+        self.need_update = True
         self.save()
     def disconnect(self):
         self.is_connected = False
+        self.need_update = True
+        self.save()
+    def update(self):
+        self.need_update = True
+        self.save()
+    def updated(self):
+        self.need_update = False
         self.save()

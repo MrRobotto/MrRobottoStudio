@@ -40,7 +40,10 @@ class Studio(View):
 
     def get_base_context(self):
         context = dict()
-        context['connected'] = AndroidView.connected
+        context['connected'] = False
+        device = AndroidDevice.objects.get_last_android()
+        if device is not None:
+            context['connected'] = device.is_connected
         context['ip'] = get_ip()
         blender_file = Studio.get_blender_file()
         blender_exe = Studio.get_blender_exe()
@@ -55,6 +58,9 @@ class Studio(View):
             blender_exe = Studio.get_blender_exe()
             blender_file = Studio.get_blender_file()
             export_to_mrr(blender_exe.file_path, blender_file.file_path)
+        device = AndroidDevice.objects.get_last_android()
+        if device:
+            device.update()
         #if AndroidView.connected:
         #    AndroidView.server_socket.send_update()
 
@@ -140,27 +146,77 @@ class Studio(View):
             return HttpResponse(404)
 
 
-def set_connected():
-    return False if AndroidView.android_device == None else AndroidView.android_device.is_connected
-
 class AndroidView(View):
-    android_device = AndroidDevice.objects.get_last_android()
-    connected = False if android_device == None else android_device.is_connected
 
-    def req_get_connect(self, request):
-        device = AndroidDevice.objects.get_last_android()
-        device.connect()
-        response = HttpResponse(status=200)
-        return response
-
-    def req_get_disconnect(self, request):
-        #AndroidView.android_device.disconnect()
-        #AndroidView.connected = set_connected()
-        device = AndroidDevice.objects.get_last_android()
-        device.disconnect()
+    def req_post_connect(self, request):
+        print("POST")
+        print(request.POST)
+        print("Body")
+        print(request.body)
+        print("Meta")
+        print(request.META)
+        android_id = "android"
+        if "HTTP_ANDROID_ID" in request.META:
+            android_id = request.META["HTTP_ANDROID_ID"]
+        device = AndroidDevice.objects.get_or_create_device(android_id)
+        if device is not None:
+            device.connect()
         return HttpResponse(status=200)
 
+    def req_post_disconnect(self, request):
+        device = AndroidDevice.objects.get_last_android()
+        if device is not None:
+            device.disconnect()
+        return HttpResponse(status=200)
+
+    def post(self, request):
+        path = request.path.replace('/','').replace("android","")
+        if path == "connect":
+            return self.req_post_connect(request)
+        elif path == "disconnect":
+            return self.req_post_disconnect(request)
+        else:
+            return HttpResponse(404)
+
+    def req_get_connect(self, request):
+        print("GET")
+        print(request.GET)
+        print("Body")
+        print(request.body)
+        android_id = "android"
+        if "android_id" in request.GET:
+            android_id = request.GET["android_id"]
+        device = AndroidDevice.objects.get_or_create_device(android_id)
+        if device is not None:
+            device.connect()
+        return HttpResponse(status=200)
+
+    def req_get_disconnect(self, request):
+        device = AndroidDevice.objects.get_last_android()
+        if device is not None:
+            device.disconnect()
+        return HttpResponse(status=200)
+
+    def req_get_need_update(self, request):
+        #while current == ServicesView.last_android:
+        #    current = AndroidView.connected
+        #ServicesView.last_android = current
+        d = dict()
+        device = AndroidDevice.objects.get_last_android()
+        if device is None:
+            d["need_update"] = False
+            return JsonResponse(d)
+        current = device.need_update
+        #while current == AndroidView.last_update:
+        #    current = device.need_update
+        #AndroidView.last_update = current
+        d["need_update"] = current
+        return JsonResponse(d)
+
     def req_get_update(self, request):
+        device = AndroidDevice.objects.get_last_android()
+        if device is not None:
+            device.updated()
         return FileResponse(open(Studio.get_mrr_file().file_path,'rb'))
 
     def get(self, request):
@@ -173,17 +229,21 @@ class AndroidView(View):
             return self.req_get_disconnect(request)
         elif path == "update":
             return self.req_get_update(request)
+        elif path == "need-update":
+            return self.req_get_need_update(request)
         else:
             return HttpResponse(404)
 
 
 class ServicesView(View):
-    last_android = None
 
     def get_is_connected(self, request):
         #current = AndroidView.android_device.is_connected
         device = AndroidDevice.objects.get_last_android()
-        current = device.is_connected
+        if device is not None:
+            current = device.is_connected
+        else:
+            current = False
         #while current == ServicesView.last_android:
         #    current = AndroidView.connected
         #ServicesView.last_android = current
