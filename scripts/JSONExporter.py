@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import threading
 import struct
 from math import pi
@@ -2190,4 +2191,7 @@ class Exporter:
         #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
         writeToFile2(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
 
+startTime = time.time()
 Exporter().export()
+stopTime = time.time()
+print("Elapsed time: ", stopTime - startTime, "ms")
