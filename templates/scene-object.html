@@ -1,0 +1,54 @@
+<style>
+    #vseditor-{{ obj.Name }} {
+        height: 300px;
+    }
+    #fseditor-{{ obj.Name }} {
+        height: 300px;
+    }
+</style>
+
+<div class="panel panel-default" id="panel-{{ obj.Name }}">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <a data-toggle="collapse" data-target="#collapse-{{ obj.Name }}" href="#collapse-{{ obj.Name }}" class="collapsed">
+                {{ obj.Name }}
+            </a>
+        </h4>
+    </div>
+    <div id="collapse-{{ obj.Name }}" class="panel-collapse collapse">
+        <div class="panel-body">
+            {% if obj.ShaderProgram %}
+            <div class="row">
+                <div class="col-md-6" id="vseditor-{{ obj.Name }}">{{ obj.ShaderProgram.VertexShaderSource }}
+                </div>
+
+                <div class="col-md-6" id="fseditor-{{ obj.Name }}">{{ obj.ShaderProgram.FragmentShaderSource }}
+                </div>
+            </div>
+            {% endif %}
+            {% if obj.Materials %}
+                {% for mat in obj.Materials %}
+                    {% if mat.Texture %}
+                        <div class="row">
+                            <img src="/services/textures/{{ mat.Texture.Name }}"/>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if obj.ShaderProgram %}
+<script type="text/javascript">
+    ace.config.set("basePath", "/static/js/ace");
+
+    var vseditor_{{ obj.Name }} = ace.edit("vseditor-{{ obj.Name }}");
+    vseditor_{{ obj.Name }}.setTheme("ace/theme/monokai");
+    vseditor_{{ obj.Name }}.getSession().setMode("ace/mode/glsl");
+
+    var fseditor_{{ obj.Name }} = ace.edit("fseditor-{{ obj.Name }}");
+    fseditor_{{ obj.Name }}.setTheme("ace/theme/monokai");
+    fseditor_{{ obj.Name }}.getSession().setMode("ace/mode/glsl");
+</script>
+{% endif %}

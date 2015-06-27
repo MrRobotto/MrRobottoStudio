@@ -1,58 +1,8 @@
 {% extends "base-studio.html" %}
 
-{% block content %}
-    <!-- Page Heading -->
-    <div class="row">
-        <div class="col-lg-12">
-            <h1 class="page-header">
-               JSON viewer
-            </h1>
-        </div>
-    </div>
-    <!-- /.row -->
-    {% if current_blend %}
-        <div class="row">
-            <div class="col-md-12 alert alert-success">
-                <form class="form-inline" method="post">
-                    <button type="submit" name="export" class="btn btn-default">Export</button>
-                    Current blender file: <b>{{ current_blend }}</b>
-                    {% csrf_token %}
-                </form>
-            </div>
-        </div>
-    {% endif %}
-
-    {% if current_mrr and connected %}
-        <div class="row">
-            <div class="col-md-12 alert alert-success">
-                <form class="form-inline" method="post">
-                    <button type="submit" name="upload" class="btn btn-default">Upload</button>
-                    Current MRR file: <b>{{ current_mrr }}</b>
-                    {% csrf_token %}
-                </form>
-            </div>
-        </div>
-    {% endif %}
-    {% if current_mrr %}
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="row">
-                    <form id="exportform" method="post">
-                        <button type="submit" name="save" class="btn btn-success">Save changes</button>
-                        {% csrf_token %}
-                    </form>
-                </div>
-                <div class="row" id="jsoneditor"></div>
-            </div>
-        </div>
-    {% endif %}
-{% endblock %}
-
 {% load staticfiles %}
-{% block script-block %}
-    <link href="{% static "jsoneditor/dist/jsoneditor.min.css" %}" rel="stylesheet" type="text/css">
-    <script src="{% static "jsoneditor/dist/jsoneditor.min.js" %}"></script>
-
+{% block headers-block %}
+    <link href="{% static "js/jsoneditor/dist/jsoneditor.min.css" %}" rel="stylesheet" type="text/css">
     <style>
     .jsoneditor .readonly {
         min-width: 16px;
@@ -86,15 +36,128 @@
       padding: 0;
       line-height: 100%;
     }
-    </style>
 
+    #vseditor {
+        height: 300px;
+    }
+    #fseditor {
+        height: 300px;
+    }
+
+    .panel-heading a:after {
+        font-family:'Glyphicons Halflings';
+        content:"\e114";
+        float: right;
+        color: grey;
+    }
+
+    .panel-heading a.collapsed:after {
+        content:"\e080";
+    }
+    </style>
+    <script src="{% static "js/ace/ace.js"%}" type="text/javascript"></script>
+
+    <style>
+        .save-changes {
+        background: none;
+        margin: 0;
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 119px;
+        height: 40px;
+        z-index: 100;
+        display: none;
+        text-decoration: none;
+        color: #ffffff;
+        background-color: #5CB85C;
+        }
+</style>
+{% endblock %}
+
+{% load staticfiles %}
+{% block content %}
+    <!-- Page Heading -->
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="page-header">
+               JSON viewer
+            </h1>
+        </div>
+    </div>
+    <!-- /.row -->
+    {% if blendfile %}
+        <div class="row">
+            <div class="col-md-12 alert alert-success">
+                <form class="form-inline" method="post">
+                    <button type="submit" name="export" class="btn btn-default">Export</button>
+                    Current blender file: <b>{{ blendfile.file_path }}</b>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if mrr %}
+        <div id="upload-panel" class="row">
+            <div class="col-md-12 alert alert-success">
+                <form class="form-inline" method="post">
+                    <button type="submit" name="upload" class="btn btn-default">Upload</button>
+                    Current MRR file: <b>{{ mrr.file_path }}</b>
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="row" id="jsoneditor"></div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if mrr %}
+        <div class="panel-group" id="accordion">
+            {% for obj in mrr.reduced %}
+                {% include "scene-object.html" with obj=obj %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!--<form class=" save-changes" style="display: inline;" method="post">
+        <button type="submit" name="save" class="btn btn-success">Save changes</button>
+
+    </form>-->
+    <button id="save-btn" name="save" class="btn btn-success save-changes" style="display: inline;">
+        Save changes
+    </button>
+
+
+{% endblock %}
+
+{% load staticfiles %}
+{% block script-block %}
+
+    <script src="{% static "js/jsoneditor/dist/jsoneditor.min.js" %}"></script>
+
+    <script type="text/javascript">
+        var pageScript = function(value) {
+            if (value == false) {
+                $("#upload-panel").hide();
+            } else {
+                $("#upload-panel").show();
+            }
+        };
+        {% if connected %}
+            pageScript(true);
+        {% else %}
+            pageScript(false);
+        {% endif %}
+    </script>
     <script>
         // create the editor
         var container = document.getElementById("jsoneditor");
         var editor = new JSONEditor(container, {'mode':'form','search':false});
 
         {% autoescape off %}
-        var json = {{ json }};
+        var json = {{ mrr.reduced|safe }};
         {% endautoescape %}
         editor.set(json);
 
@@ -107,6 +170,27 @@
         });
 
         // get json
+    </script>
+
+    <script>
+        var getNewData = function() {
+            var newData = {};
+            {% for name, d in mrr.objects_dict.items %}
+                var obj_{{ name }} = {{ d.json|safe }};
+                {% if d.obj.ShaderProgram %}
+                    obj_{{ name }}.ShaderProgram.VertexShaderSource = vseditor_{{ name }}.getSession().getValue();
+                    obj_{{ name }}.ShaderProgram.FragmentShaderSource = fseditor_{{ name }}.getSession().getValue();
+                {% endif %}
+                newData["{{ name }}"] = obj_{{name }};
+            {% endfor %}
+            console.log(newData);
+            return JSON.stringify(newData);
+        };
+        $("#save-btn").click(function() {
+            $.post("/studio/json-tools",
+                    {save: getNewData()}
+            );
+        });
     </script>
 
 {% endblock %}

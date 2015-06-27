@@ -1,4 +1,5 @@
 import os
+import time
 import re
 import subprocess
 import struct
@@ -24,7 +25,7 @@ def get_ip():
 
 def get_directory(dir):
     g = os.walk(dir)
-    return g.next()
+    return next(g)
 
 def get_abs_path(dir, file=None):
     if file is not None:
@@ -37,39 +38,26 @@ def export_to_mrr(blender, file):
     script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter.py')
     subprocess.call([blender, file, '--background','--python',script])
 
-def save_json(filepath, json):
-    f = file(filepath, 'w')
-    f.write(json)
-    f.close()
-
-def load_json(filename):
-    if filename:
-        f = open(filename)
-        o = f.read()
-        return o.replace('"','\"')
-
-def load_mrr(filename):
-    if filename:
-        f = open(filename, "rb")
-        o = f.read()
-        return o
+def get_modification_time(f):
+    return time.ctime(os.path.getmtime(f))
 
 def decode_mrr(filename):
     f = open(filename, "rb")
     magic = f.readline().strip()
-    if not magic == 'MRROBOTTOFILE':
+    if not magic == b"MRROBOTTOFILE":
         return None, None
     command = f.read(4)
     json = None
     images = dict()
-    while not command == "FNSH":
-        if command == "JSON":
+    while not command == b"FNSH":
+        if command == b"JSON":
             l = f.read(4)
             l = struct.unpack('>I', l)[0]
             f.read(1)
             json = f.read(l)
+            json = json.decode("ascii")
             f.read(1)
-        if command == "TEXT":
+        if command == b"TEXT":
             ntex = f.read(4)
             ntex = struct.unpack('>I', ntex)[0]
             f.read(1)
@@ -78,6 +66,7 @@ def decode_mrr(filename):
                 nameLen = f.read(4)
                 nameLen = struct.unpack('>I', nameLen)[0]
                 texName = f.read(nameLen)
+                texName = texName.decode("ascii")
                 texLen = f.read(4)
                 texLen = struct.unpack('>I', texLen)[0]
                 f.read(1)
@@ -86,3 +75,30 @@ def decode_mrr(filename):
                 images[texName] = image
         command = f.read(4)
     return json, images
+
+def write_mrr(filename, json, textures):
+    file = open(filename, "wb")
+    file.write(bytearray('MRROBOTTOFILE\n', encoding='ascii'))
+    file.write(bytearray('JSON',encoding='ascii'))
+    file.write(struct.pack('>I',len(json)))
+    file.write(bytearray('\n',encoding='ascii'))
+    file.write(bytearray(json, encoding='ascii'))
+    file.write(bytearray('\n',encoding='ascii'))
+    if len(textures) > 0:
+        file.write(bytearray('TEXT',encoding='ascii'))
+        file.write(struct.pack('>I',len(textures)))
+        file.write(bytearray('\n',encoding='ascii'))
+        for item in textures.items():
+            #f = open(item[1],'rb')
+            #image = f.read()
+            image = item[1]
+            file.write(bytearray('NAME',encoding='ascii'))
+            file.write(struct.pack('>I',len(item[0])))
+            file.write(bytearray(item[0],encoding='ascii'))
+            file.write(struct.pack('>I',len(image)))
+            file.write(bytearray('\n',encoding='ascii'))
+            file.write(image)
+            file.write(bytearray('\n',encoding='ascii'))
+            #f.close()
+    file.write(bytearray('FNSH',encoding='ascii'))
+    file.close()

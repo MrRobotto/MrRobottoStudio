@@ -4,3 +4,8 @@
 *.json
 .idea/
 *.pyc
+/studio/migrations
+/services/migrations
+/studio/__pycache__/
+/services/__pycache__/
+*.sqlite3

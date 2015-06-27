@@ -13,9 +13,9 @@
 
     <div class="row">
         <div class="col-lg-12">
-            {% if current %}
+            {% if blenderexe %}
                 <div class="alert alert-success alert-dismissable">
-                    Blender is located on: <b>{{ current }}</b>
+                    Blender is located on: <b>{{ blenderexe.file_path }}</b>
                 </div>
             {% endif %}
         </div>
@@ -24,7 +24,7 @@
     <div class="row">
         <div class="panel panel-default">
             <!-- Default panel contents -->
-            <div class="panel-heading">{{ dirname }}</div>
+            <div class="panel-heading">{{ blenderexe_explorer.dir_path }}</div>
             <ul class="list-group">
                 <li class="list-group-item">
                     <form class="form-inline" method="POST">
@@ -40,7 +40,7 @@
                         {% csrf_token %}
                     </form>
                 </li>
-                {% for folder in folders %}
+                {% for folder in blenderexe_explorer.folders %}
                     <li class="list-group-item">
                     <form class="form-inline" method="POST">
                         <div class="row">
@@ -59,7 +59,7 @@
             </ul>
 
             <ul class="list-group">
-                {% for file in files %}
+                {% for file in blenderexe_explorer.files %}
                     <li class="list-group-item">
                         <form class="form-inline" method="POST">
                             <div class="row">
@@ -79,4 +79,10 @@
         </div>
     </div>
 
+{% endblock %}
+
+{% block script-block %}
+    <script type="text/javascript">
+        var pageScript = function(value) {}
+    </script>
 {% endblock %}
