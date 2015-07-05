@@ -1,7 +1,10 @@
 import os
+import sys
 import json
 import time
 import threading
+import subprocess
+import multiprocessing
 import struct
 from math import pi
 
@@ -2094,6 +2097,55 @@ class SceneObjectsListExporter:
         organizer.setMaxShader()
         SceneExporter(scene).export()
 
+class SceneObjectExporter2:
+    def __init__(self, name, sceneObjs):
+        self.name = name
+        self.sceneObjs = sceneObjs
+    def export(self):
+        try:
+            obj = self.sceneObjs[self.name]
+        except:
+            return None
+        if (obj.type == 'MESH'):
+            model = Model()
+            ModelExporter(obj, model).export()
+            #self.outList.addSceneObj(model, scene)
+            return model
+        elif (obj.type == 'CAMERA'):
+            camera = Camera()
+            CameraExporter(obj, camera).export()
+            #self.outList.addSceneObj(camera, scene)
+            return camera
+        elif (obj.type == 'LAMP'):
+            light = Light()
+            LightExporter(obj, light).export()
+            #self.outList.addSceneObj(light, scene)
+            return light
+            
+
+class Exporter2:
+
+    def __init__(self, objName):
+        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
+        #self.filename = os.path.splitext(D.filepath)[0]
+        self.filename = os.path.splitext(D.filepath)[0] + "_" + objName
+        self.objName = objName
+        
+    def getTexture(self, obj):
+        textures = dict()
+        if obj.Type == SCENEOBJTYPE_MODEL:
+            for mat in obj.Materials:
+                if mat.hasTexture():
+                    textures[mat.Texture.Name] = mat.Texture.path
+        return textures
+            
+    def export(self):
+        #SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
+        #sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+        obj = SceneObjectExporter2(self.objName, D.objects).export()
+        if obj is not None:
+            objJson = json.dumps(obj, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+            writeToFile2(self.filename + '.mrr', objJson, self.getTexture(obj))
 
 def prettyPrintJSON(scene):
     """Pretty printing long lists"""
@@ -2190,8 +2242,60 @@ class Exporter:
         #writeToFile(self.filename + EXT, sceneJson)
         #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
         writeToFile2(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
+        
+class Executor:
+    def __init__(self):
+        self.queue = list()
+        self.numProcess = 0
+        self.maxProcess = multiprocessing.cpu_count() + 1
+        self.process = list()
+    def addCmd(self, cmd):
+        self.queue.append(cmd)
+    def nextCmd(self):
+        if len(self.queue) > 0:
+            return self.queue.pop(0)
+        return None
+    def waitExecOne(self):
+        while self.numProcess >= self.maxProcess:
+            for p in self.process:
+                p.poll()
+            self.process = [p for p in self.process if p.returncode == None]
+            self.numProcess = len(self.process)
+    def waitExecAll(self):
+        while self.numProcess > 0:
+            for p in self.process:
+                p.wait()
+            self.process = [p for p in self.process if p.returncode == None]
+            self.numProcess = len(self.process)
+    def executeAll(self):
+        while len(self.queue) > 0:
+            cmd = self.nextCmd()
+            self.waitExecOne()
+            if cmd == None:
+                self.waitExecAll()
+                return
+            else:
+                p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL)
+                self.process.append(p)
+                self.numProcess = len(self.process)
 
-startTime = time.time()
-Exporter().export()
-stopTime = time.time()
-print("Elapsed time: ", stopTime - startTime, "ms")
+
+if __name__ == "__main__":
+    startTime = time.time()
+    args = sys.argv
+    name = args[-1]
+    if name not in D.objects:
+        blenderExe = sys.executable
+        cmdBase = blenderExe + " " + D.filepath + " --background --python " + os.path.realpath(__file__) + " -- " 
+        executor = Executor()
+        for obj in D.objects:
+            if obj.type == "MESH" or obj.type == "CAMERA" or obj.type == "LAMP":
+                executor.addCmd(cmdBase+obj.name)
+        executor.executeAll()
+        stopTime = time.time()
+        print("Total Elapsed time: ", stopTime - startTime, "ms")
+    else:
+        #Exporter().export()
+        Exporter2(name).export()
+        stopTime = time.time()
+        print("Elapsed time: ", stopTime - startTime, "ms")
