@@ -187,6 +187,9 @@ SCENE_CLEARCOLOR = [0.5,0.5,0.5,1.0]
 ORDER = {ATTRNAME_VERTEX: 0, ATTRNAME_NORMAL: 1, ATTRNAME_MATERIAL:2, ATTRNAME_TEXTURE: 3, ATTRNAME_WEIGHT: 4, ATTRNAME_BIND: 5}
 DATATYPE_SIZES = {DATATYPE_FLOAT: 1, DATATYPE_INT: 1, DATATYPE_VEC2: 2, DATATYPE_VEC3: 3, DATATYPE_VEC4: 4, DATATYPE_MAT3: 9, DATATYPE_MAT4: 16}
 
+#################################################################################
+# COMMON FUNCTIONS
+#################################################################################
 def cleanName(name):
     return name.replace(".","_").replace("-","_")
 
@@ -200,6 +203,7 @@ def cmpVec(v1,v2):
     return (v1-v2).length < PRECISSION
 
 def mround(f):
+    """Rounds a float or list of floats"""
     if hasattr(f, '__iter__') or hasattr(f, '__getitem__'):
         return [round(e, MAX_DIGITS) for e in f]
     else:

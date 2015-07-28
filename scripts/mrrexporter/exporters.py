@@ -600,7 +600,7 @@ class SceneExporter:
     def export(self):
         self.setUniformKeys()
 
-class SceneObjectsListExporter:
+class SceneObjectsExporter:
     def __init__(self, sceneObjs, outList):
         self.sceneObjs = sceneObjs
         self.outList = outList

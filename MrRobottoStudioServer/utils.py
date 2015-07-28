@@ -35,7 +35,7 @@ def get_abs_path(dir, file=None):
     return None
 
 def export_to_mrr(blender, file):
-    script = os.path.join(settings.BASE_DIR,'scripts','JSONExporter.py')
+    script = os.path.join(settings.BASE_DIR,'scripts/mrrexporter','mrrexporter.py')
     subprocess.call([blender, file, '--background','--python',script])
 
 def get_modification_time(f):

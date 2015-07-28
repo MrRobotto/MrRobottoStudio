@@ -66,6 +66,51 @@ def writeToFile2(filename, json, textures):
     file.write(bytearray('FNSH',encoding='ascii'))
     file.close()
 
+class FileWriter:
+    def __init__(self, filename):
+        self.file = open(filename, "wb")
+    def close(self):
+        self.file.close()
+    def writeStr(self, s):
+        self.file.write(bytearray(s, encoding='ascii'))
+    def writeStrLn(self, s):
+        self.file.write(bytearray(s+"\n", encoding='ascii'))
+    def jumpLn(self):
+        self.writeStrLn("")
+    def writeInt(self, i):
+        self.file.write(struct.pack('>I', i))
+    def writeBytes(self, b):
+        self.file.write(b)
+
+def writeMrrSceneFile(filename, files, names):
+    writer = FileWriter(filename)
+    writer.writeStrLn("MRROBOTTOFILE")
+
+    writer.writeStr("TYPE")
+    writer.writeStrLn("FULL")
+    #writer.writeStrLn("MULT")
+    #writer.writeStrLn("PART")
+
+    writer.writeStrLn("HRCY")
+    writer.writeInt(0)
+    writer.jumpLn()
+
+    writer.writeStrLn("SCOB")
+    writer.writeInt(len(files))
+    writer.jumpLn()
+
+    for i in range(len(files)):
+        writer.writeStr("NAME")
+        writer.writeInt(len(names[i]))
+        writer.writeStrLn(names[i])
+        f = open(files[i])
+        obj = f.read()
+        writer.writeBytes(obj)
+        f.close()
+
+    writer.writeStrLn("FNSH")
+    writer.close()
+
 class SceneJSONEncoder(json.JSONEncoder):
     def default(self,obj):
         #All elements in listTypes will be serialized as lists
@@ -80,46 +125,6 @@ class SceneJSONEncoder(json.JSONEncoder):
         if isinstance(obj,listTypes):
             return list(obj)
         json.JSONEncoder.default(self, obj)
-
-
-class Exporter:
-    sceneObjectsList = SceneObjectsList()
-
-    def __init__(self):
-        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
-        self.filename = os.path.splitext(D.filepath)[0]
-
-    def export(self):
-        SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
-        sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
-        #writeToFile(self.filename + EXT, prettyPrintJSON(sceneObjectsList))
-        #writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
-        #writeToFile(self.filename + EXT, sceneJson)
-        #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
-        writeToFile2(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
-        
-class Exporter2:
-    def __init__(self, objName):
-        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
-        #self.filename = os.path.splitext(D.filepath)[0]
-        self.filename = os.path.splitext(D.filepath)[0] + "_" + objName
-        self.objName = objName
-        
-    def getTexture(self, obj):
-        textures = dict()
-        if obj.Type == SCENEOBJTYPE_MODEL:
-            for mat in obj.Materials:
-                if mat.hasTexture():
-                    textures[mat.Texture.Name] = mat.Texture.path
-        return textures
-            
-    def export(self):
-        #SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
-        #sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
-        obj = SceneObjectExporter2(self.objName, D.objects).export()
-        if obj is not None:
-            objJson = json.dumps(obj, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
-            writeToFile2(self.filename + '.mrr', objJson, self.getTexture(obj))
         
 class Executor:
     def __init__(self):
@@ -157,4 +162,56 @@ class Executor:
                 self.process.append(p)
                 self.numProcess = len(self.process)
 
+class Joiner:
+    def __init__(self):
+        self.byTypes = dict()
+    def addFileToJoin(self, objName, filename, objType):
+        if objType in self.byTypes:
+            self.byTypes[objType].append((objName, filename))
+        else:
+            self.byTypes[objType] = list()
+            self.byTypes[objType].append((objName, filename))
+    def joinAll(self):
+        fileList = list()
+        nameList = list()
+        #for type in [""]
+        #return
 
+
+class Exporter:
+    sceneObjectsList = SceneObjectsList()
+
+    def __init__(self, filename):
+        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
+        self.filename = filename
+
+    def export(self):
+        SceneObjectsExporter(D.objects,Exporter.sceneObjectsList).export()
+        sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+        #writeToFile(self.filename + EXT, prettyPrintJSON(sceneObjectsList))
+        #writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
+        #writeToFile(self.filename + EXT, sceneJson)
+        #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
+        writeToFile2(self.filename, sceneJson, Exporter.sceneObjectsList.textures)
+
+class Exporter2:
+    def __init__(self, objName, filename):
+        #self.filename = os.path.splitext(D.filepath)[0] + "_" + objName
+        self.filename = filename
+        self.objName = objName
+
+    def getTexture(self, obj):
+        textures = dict()
+        if obj.Type == SCENEOBJTYPE_MODEL:
+            for mat in obj.Materials:
+                if mat.hasTexture():
+                    textures[mat.Texture.Name] = mat.Texture.path
+        return textures
+
+    def export(self):
+        #SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
+        #sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+        obj = SceneObjectExporter2(self.objName, D.objects).export()
+        if obj is not None:
+            objJson = json.dumps(obj, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+            writeToFile2(self.filename, objJson, self.getTexture(obj))
