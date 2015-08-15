@@ -1,8 +1,8 @@
-{% extends "base-studio.html" %}
+{% extends "base/base-studio.html" %}
 
 {% load staticfiles %}
 {% block headers-block %}
-    <link href="{% static "js/jsoneditor/dist/jsoneditor.min.css" %}" rel="stylesheet" type="text/css">
+    <link href="{% static "old/js/jsoneditor/dist/jsoneditor.min.css" %}" rel="stylesheet" type="text/css">
     <style>
     .jsoneditor .readonly {
         min-width: 16px;
@@ -55,7 +55,7 @@
         content:"\e080";
     }
     </style>
-    <script src="{% static "js/ace/ace.js"%}" type="text/javascript"></script>
+    <script src="{% static "old/js/ace/ace.js" %}" type="text/javascript"></script>
 
     <style>
         .save-changes {
@@ -135,7 +135,7 @@
 {% load staticfiles %}
 {% block script-block %}
 
-    <script src="{% static "js/jsoneditor/dist/jsoneditor.min.js" %}"></script>
+    <script src="{% static "old/js/jsoneditor/dist/jsoneditor.min.js" %}"></script>
 
     <script type="text/javascript">
         var pageScript = function(value) {

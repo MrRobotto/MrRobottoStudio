@@ -19,9 +19,17 @@ def file_filter(files, ext):
     return [f for f in files if re.match(r".*."+ext+'$',f)]
 
 def get_ip():
-    import socket
-    #return socket.gethostname()
-    return socket.gethostbyname(socket.gethostname())
+    if settings.STUDIO_IP is None:
+        import socket
+        return socket.gethostbyname(socket.gethostname())
+    else:
+        return settings.STUDIO_IP
+
+def get_port():
+    return settings.STUDIO_PORT
+
+def get_baser_url():
+    return "http://" + get_ip() + ":" + str(get_port())
 
 def get_directory(dir):
     g = os.walk(dir)

@@ -30,32 +30,44 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = (
-    #'django.contrib.admin',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    #'django.contrib.sessions',
-    #'django.contrib.messages',
+    'django.contrib.sessions',
+    'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
     'studio',
-    'services'
+    'studioweb',
+    'studioservices'
     #'MrRobottoStudioServer'
 )
 
+#MIDDLEWARE_CLASSES = (
+#    #'django.contrib.sessions.middleware.SessionMiddleware',
+#    'django.middleware.common.CommonMiddleware',
+#    #'django.middleware.csrf.CsrfViewMiddleware',
+#    #'django.contrib.auth.middleware.AuthenticationMiddleware',
+#    #'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+#    #'django.contrib.messages.middleware.MessageMiddleware',
+#    #'django.middleware.clickjacking.XFrameOptionsMiddleware',
+#)
+
 MIDDLEWARE_CLASSES = (
-    #'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    #'django.middleware.csrf.CsrfViewMiddleware',
-    #'django.contrib.auth.middleware.AuthenticationMiddleware',
-    #'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
-    #'django.contrib.messages.middleware.MessageMiddleware',
-    #'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
 )
 
 ROOT_URLCONF = 'MrRobottoStudioServer.urls'
 
 WSGI_APPLICATION = 'MrRobottoStudioServer.wsgi.application'
-
-SERVER_SOCKET_PORT = 8001
 
 # Database
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
@@ -64,6 +76,11 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'studiodb.sqlite3'),
+    },
+    'replica': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'testingdb.sqlite3'),
+        'TEST_MIRROR': 'default'
     }
 }
 
@@ -80,9 +97,25 @@ USE_L10N = True
 
 USE_TZ = True
 
-TEMPLATE_DIRS = (
-    os.path.join(BASE_DIR,  'templates'),
-)
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(BASE_DIR,  'templates')],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+#TEMPLATE_DIRS = (
+#    os.path.join(BASE_DIR,  'templates'),
+#)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
@@ -94,3 +127,16 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = (
     os.path.join(STATIC_ROOT, 'static'),
 )
+
+LOGIN_URL = "/studio/login-page/"
+LOGIN_REDIRECT_URL = '/studio/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    )
+}
+
+STUDIO_IP = None
+STUDIO_PORT = 8000

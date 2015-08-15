@@ -1,0 +1,31 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include "studio/studio-headers.html" %}
+</head>
+<body>
+    <div id="wrapper">
+        {% include "studio/studio-navbar.html" %}
+        <div id="page-wrapper">
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1>{{ page_title }} <small>{{ page_subtitle }}</small></h1>
+                </div>
+            </div>
+            {% if page == 'dashboard' %}
+                {% include "studio/pages/studiopage-dashboard.html" %}
+            {% elif page == 'registerdevice' %}
+                {% include "studio/pages/studiopage-registerdevice.html" %}
+            {% elif page == 'devices' %}
+                {% include "studio/pages/studiopage-devices.html" %}
+            {% elif page == 'blendfiles' %}
+                {% include "studio/pages/studiopage-blendfiles.html" %}
+            {% endif %}
+        </div>
+    </div>
+    <!-- /#wrapper -->
+
+    {% include "studio/studio-scripts.html" %}
+</body>
+</html>
