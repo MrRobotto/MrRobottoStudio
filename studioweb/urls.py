@@ -15,6 +15,7 @@ studiourls = patterns('',
     )
 
 urlpatterns = patterns('',
+    url(r'^$', 'studioweb.views.root'),
     url(r'^studio/', include(studiourls)),
     )
 

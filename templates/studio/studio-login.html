@@ -9,10 +9,16 @@
 </head>
 <body ng-controller="LoginCtrl">
     <div id="wrapper">
-        {% include "studio/studio-navbar.html" %}
+
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="/studio">MrRobotto Studio</a>
+            </div>
+        </nav>
+
         <div id="page-wrapper">
             <div class="container">
-                <div class="col-md-offset-2 col-md-4">
+                <div class="col-md-4">
                 <h2>Register</h2>
                 <form action="/studio/login-page/" method="post">
                     {% csrf_token %}
@@ -54,8 +60,5 @@
     <!-- /#wrapper -->
 
     {% include "studio/studio-scripts.html" %}
-</body>
-
-
 </body>
 </html>

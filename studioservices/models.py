@@ -17,9 +17,12 @@ class RegistrationAttemp(models.Model):
     date = models.DateField(default=timezone.now)
     is_used = models.BooleanField(default=False)
 
-class BlendFile(models.Model):
+#Cambiar blendfile por mrrfile
+class MrrFile(models.Model):
     user = models.ForeignKey(to=User)
     filename = models.CharField(max_length=80)
-    file = models.FileField()
+    blend_file = models.FileField()
+    mrr_file = models.FileField()
+    is_selected = models.BooleanField(default=False)
     upload_date = models.DateTimeField(default=timezone.now)
 

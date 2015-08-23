@@ -1,7 +1,6 @@
 'use strict';
 
 var studioApp = angular.module('StudioApp', [
-
   'StudioControllers',
   'StudioServices'
 ]);

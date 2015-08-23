@@ -41,18 +41,7 @@ INSTALLED_APPS = (
     'studio',
     'studioweb',
     'studioservices'
-    #'MrRobottoStudioServer'
 )
-
-#MIDDLEWARE_CLASSES = (
-#    #'django.contrib.sessions.middleware.SessionMiddleware',
-#    'django.middleware.common.CommonMiddleware',
-#    #'django.middleware.csrf.CsrfViewMiddleware',
-#    #'django.contrib.auth.middleware.AuthenticationMiddleware',
-#    #'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
-#    #'django.contrib.messages.middleware.MessageMiddleware',
-#    #'django.middleware.clickjacking.XFrameOptionsMiddleware',
-#)
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -75,11 +64,11 @@ WSGI_APPLICATION = 'MrRobottoStudioServer.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'studiodb.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'database/studiodb.sqlite3'),
     },
     'replica': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'testingdb.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'database/testingdb.sqlite3'),
         'TEST_MIRROR': 'default'
     }
 }
@@ -138,5 +127,9 @@ REST_FRAMEWORK = {
     )
 }
 
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
 STUDIO_IP = None
 STUDIO_PORT = 8000
+
+BLENDER_EXE = "C:/Program Files/Blender Foundation/Blender/blender.exe"

@@ -8,11 +8,7 @@ from studioservices import urls as services_urls
 import MrRobottoStudioServer.settings as settings
 
 urlpatterns = patterns('',
-    url(r'^$', 'MrRobottoStudioServer.views.home', name='home'),
-    #url(r'^studio/', include('studio.urls')),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    url(r'^services/is-connected', ServicesView.as_view(), name='is-connected'),
-    url(r'^services/textures', ServicesView.as_view(), name="textures"),
 )
 
 urlpatterns += studio_urls.urlpatterns

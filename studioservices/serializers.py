@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework.authtoken.models import Token
-from studioservices.models import AndroidDevice, BlendFile
+from studioservices.models import AndroidDevice, MrrFile
 
 User = get_user_model()
 
@@ -62,16 +62,17 @@ class AndroidDeviceSerializer(serializers.ModelSerializer):
         }
 
 
-class BlendFileSerializer(serializers.ModelSerializer):
+class MrrFilesSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = BlendFile
-        fields = ('file', )
+        model = MrrFile
+        fields = ('blend_file', )
 
     def to_representation(self, instance):
         return {
             'id': instance.pk,
             'filename': instance.filename,
+            'is_selected': instance.is_selected,
             'upload_date': instance.upload_date,
             'user': instance.user.username
         }

@@ -2,6 +2,27 @@
 
 var studioControllers = angular.module('StudioControllers', []);
 
+studioControllers.controller('BlendFilesController', ['$scope', 'MrrFiles', function($scope, MrrFiles){
+
+    $scope.mrrs = MrrFiles.query();
+
+    $scope.selected_mrr = MrrFiles.selected();
+
+    $scope.onSelect = function(mrr) {
+        MrrFiles.select({mrrId: mrr.id}, function() {
+            $scope.mrrs = MrrFiles.query();
+            $scope.selected_mrr = MrrFiles.selected();
+        });
+    };
+
+    $scope.onDelete = function(mrr) {
+        MrrFiles.delete({mrrId: mrr.id}, function() {
+            $scope.mrrs = MrrFiles.query();
+            $scope.selected_mrr = MrrFiles.selected();
+        });
+    }
+}]);
+
 studioControllers.controller('LoginCtrl', ['$scope', '$location', 'User', function ($scope, $location, User) {
 
     $scope.regUsername = "";

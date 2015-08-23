@@ -1,4 +1,9 @@
+import io
+import os
+
 from django.contrib.auth import get_user_model, authenticate, login, logout
+from django.core.files import File
+from django.core.files.storage import default_storage
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, mixins
@@ -8,13 +13,14 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, BasePermission
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from MrRobottoStudioServer import utils
-from studioservices.models import AndroidDevice, RegistrationAttemp, BlendFile
-from studioservices.serializers import UserSerializer, AuthTokenSerializer, RegisterSerializer, LoginSerializer, \
-    AndroidDeviceSerializer, BlendFileSerializer
-
 import qrcode.main
-import io
+from MrRobottoStudioServer import settings
+
+from studioservices import utils
+from studioservices.models import AndroidDevice, RegistrationAttemp, MrrFile
+from studioservices.serializers import UserSerializer, AuthTokenSerializer, RegisterSerializer, LoginSerializer, \
+    AndroidDeviceSerializer, MrrFilesSerializer
+
 
 User = get_user_model()
 
@@ -196,47 +202,113 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
         except:
             return Response({'error': 'bad request data'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @list_route(methods=['GET'])
-    def qrcode(self, request, *args, **kwargs):
+    def get_register_data(self, request):
         token, created = Token.objects.get_or_create(user=request.user)
         attemp, created = RegistrationAttemp.objects.get_or_create(user=request.user, is_used=False)
         url = utils.get_baser_url() + reverse("api-devices-list") + "?pk=" + str(attemp.pk)
-        img = qrcode.main.make({'url': url, 'token':token.key})
+        return {'url': url, 'token':token.key}
+
+    @list_route(methods=['GET'])
+    def qrcode(self, request, *args, **kwargs):
+        img = qrcode.main.make(self.get_register_data(request))
         f = io.BytesIO()
         img.save(f, kind='PNG')
         f.seek(0)
         return FileResponse(f, content_type='image/png')
 
 
-class BlendFilesViewSet(viewsets.ModelViewSet):
+class MrrFilesViewSet(viewsets.ModelViewSet):
 
     permission_classes = (IsAuthenticated, )
-    queryset = BlendFile.objects.all()
-    serializer_class = BlendFileSerializer
+    queryset = MrrFile.objects.all()
+    serializer_class = MrrFilesSerializer
 
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return BlendFile.objects.all().order_by('-upload_date')
+            return MrrFile.objects.all().order_by('-upload_date')
         else:
-            return BlendFile.objects.filter(user=self.request.user).order_by('-upload_date')
+            return MrrFile.objects.filter(user=self.request.user).order_by('-upload_date')
 
     def create(self, request, *args, **kwargs):
         if 'file' in request.FILES:
             f = request.FILES['file']
-            blend, created = BlendFile.objects.get_or_create(user=self.request.user, filename=f.name)
-            blend.file = f
-            blend.upload_date = timezone.now()
-            blend.save()
-            return Response(BlendFileSerializer().to_representation(blend), status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            filename = os.path.splitext(os.path.basename(f.name))[0]
+            blends = self.get_queryset().filter(user=self.request.user, filename=filename)
+            created = len(blends) == 0
+            if not created:
+                try:
+                    mrr = blends[0]
+                    os.remove(mrr.blend_file.path)
+                except:
+                    pass
+            name = default_storage.save(f.name, f)
+            path = os.path.join(settings.MEDIA_ROOT, name)
+            if not utils.export_blend_to_mrr(path):
+                os.remove(path)
+                return Response({'error': 'Error exporting file'}, status=status.HTTP_400_BAD_REQUEST)
+            if created:
+                blend = MrrFile(user=self.request.user, filename=filename)
+                blend.upload_date = timezone.now()
+                blend.blend_file.name = path
+                blend.mrr_file.name = os.path.join(os.path.dirname(blend.blend_file.path), filename+".mrr")
+                blend.save()
+            else:
+                blend = blends.first()
+                blend.upload_date = timezone.now()
+                blend.blend_file.name = path
+                blend.mrr_file.name = os.path.join(os.path.dirname(blend.blend_file.path), filename+".mrr")
+                blend.save()
+            self.select_file(blend.pk)
+            return Response(MrrFilesSerializer().to_representation(blend), status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         else:
             return Response({'error': 'No file selected'}, status=status.HTTP_400_BAD_REQUEST)
 
+    def destroy(self, request, *args, **kwargs):
+        pk = kwargs['pk']
+        f = self.get_queryset().filter(pk=pk)[0]
+        try:
+            os.remove(f.mrr_file.path)
+        except:
+            pass
+        try:
+            os.remove(f.blend_file.path)
+        except:
+            pass
+        return viewsets.ModelViewSet.destroy(self, request, args, kwargs)
+
+    #TODO: Check existence
     @detail_route(methods=['GET'])
     def download(self, request, *args, **kwargs):
         pk = kwargs['pk']
         files = self.get_queryset().filter(pk=pk)
-        blend = files[0]
-        r = FileResponse(blend.file, content_type="application/octet-stream")
-        r['Content-Disposition'] = 'attachment; filename="' + blend.filename + '"'
+        f = files[0]
+        r = FileResponse(f.mrr_file, content_type="application/octet-stream")
+        r['Content-Disposition'] = 'attachment; filename="' + f.filename + '"'
         return r
+
+    def select_file(self, pk):
+        selecteds = self.get_queryset().filter(is_selected=True)
+        for sel in selecteds:
+            sel.is_selected = False
+            sel.save()
+        files = self.get_queryset().filter(pk=pk)
+        f = files[0]
+        f.is_selected = True
+        f.save()
+        return f
+
+    #TODO: Check existence
+    @detail_route(methods=['GET'])
+    def select(self, request, *args, **kwargs):
+        pk = kwargs['pk']
+        f = self.select_file(pk)
+        return Response(MrrFilesSerializer().to_representation(f) ,status=status.HTTP_200_OK)
+
+    @list_route(methods=['GET'])
+    def selected(self, request, *args, **kwargs):
+        f = self.get_queryset().filter(is_selected=True)
+        if len(f) > 0:
+            f = f[0]
+            return Response(MrrFilesSerializer().to_representation(f) ,status=status.HTTP_200_OK)
+        return Response({} ,status=status.HTTP_200_OK)

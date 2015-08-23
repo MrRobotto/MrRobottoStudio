@@ -1,13 +1,15 @@
 
-
-            <div class="row">
+<div ng-controller="BlendFilesController">
+                <div class="row">
                 <div class="col-md-6">
                     <div class="panel panel-primary">
                         <div class="panel-heading">
                             <h3 class="panel-title"><i class="fa fa-archive"></i> Current MRR File</h3>
                         </div>
                         <div class="panel-body">
-
+                            {% verbatim %}
+                                {{ selected_mrr.filename }}
+                            {% endverbatim %}
                         </div>
                     </div>
                 </div>
@@ -44,31 +46,42 @@
                                         <th>ID</th>
                                         <th>Filename</th>
                                         <th>Upload Date</th>
+                                        <th>Selected</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {% for blend in blends %}
-
-                                    {% endfor %}
-
-                                    {% for blend in blends %}
+                                <tbody ng-repeat="mrr in mrrs">
+                                    {% verbatim %}
+                                        <tr ng-class="{{ $index % 2 == 0 }} ? 'odd' : 'even'">
+                                            <td>{{ mrr.id }}</td>
+                                            <td>{{ mrr.filename }}</td>
+                                            <td>{{ mrr.upload_date }}</td>
+                                            <td><i ng-class="mrr.is_selected ? 'fa fa-check' : 'fa fa-close'"></i></td>
+                                            <td>
+                                                <button class="btn btn-xs btn-info" ng-click="onSelect(mrr);">Select</button>
+                                                <button class="btn btn-xs btn-danger" ng-click="onDelete(mrr);">Delete</button>
+                                            </td>
+                                        </tr>
+                                    {% endverbatim %}
+                                    <!--{% for blend in blends %}
                                         {% if forloop.counter|divisibleby:2 %}
                                             <tr class="even">
-                                                <td class="center">{{ blend.id }}</td>
-                                                <td>{{ blend.filename }}</td>
-                                                <td>{{ blend.upload_date }}</td>
-                                            </tr>
                                         {% else %}
                                             <tr class="odd">
+                                        {% endif %}
                                                 <td class="center">{{ blend.id }}</td>
                                                 <td>{{ blend.filename }}</td>
                                                 <td>{{ blend.upload_date }}</td>
+                                                <td>
+                                                    <button class="btn btn-xs btn-info">Select</button>
+                                                    <button class="btn btn-xs btn-danger">Delete</button>
+                                                </td>
                                             </tr>
-                                        {% endif %}
-                                    {% endfor %}
+                                    {% endfor %}-->
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
+</div>

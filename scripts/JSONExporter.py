@@ -11,7 +11,7 @@ from math import pi
 import bpy
 import bpy.path
 import bmesh
-from mathutils import *
+from mathutils import Vector, Quaternion, Matrix,Color
 import bpy.types
 
 D = bpy.data
@@ -1371,10 +1371,6 @@ class ShaderGenerator:
         if isinstance(self.obj, Model):
             vs = VertexShaderSourceGenerator(self.configurer).genSource()
             fs = FragmentShaderSourceGenerator(self.configurer).genSource()
-        print("VertexShader")
-        print(vs)
-        print("FragmentShader")
-        print(fs)
         return vs, fs
     def genShaderProgram(self):
         vs, fs = self.genSource()
@@ -2283,7 +2279,10 @@ class Executor:
 if __name__ == "__main__":
     startTime = time.time()
     args = sys.argv
-    name = args[-1]
+    Exporter().export()
+    stopTime = time.time()
+    print("Elapsed time: ", stopTime - startTime, "ms")
+    """name = args[-1]
     if name not in D.objects:
         blenderExe = sys.executable
         cmdBase = blenderExe + " " + D.filepath + " --background --python " + os.path.realpath(__file__) + " -- " 
@@ -2298,4 +2297,4 @@ if __name__ == "__main__":
         #Exporter().export()
         Exporter2(name).export()
         stopTime = time.time()
-        print("Elapsed time: ", stopTime - startTime, "ms")
+        print("Elapsed time: ", stopTime - startTime, "ms")"""

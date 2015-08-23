@@ -3,6 +3,9 @@ from models import *
 from shaders import *
 
 #TODO: All exporters should have a method export with an out object?
+from postprocessing import ShaderOrganizer
+from filegenerator import Exporter
+
 
 class MeshExporter:
     def __init__(self, meshOb, outMesh, boneAligner=None):

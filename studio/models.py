@@ -1,9 +1,12 @@
 import os
 import json
+
 from django.db import models
 from django.utils import timezone
+
 from MrRobottoStudioServer import settings
-import MrRobottoStudioServer.utils as utils
+import studioservices.utils as utils
+
 
 class FileSystemNavigatorManager(models.Manager):
     def get_or_create_fsn_of(self, dir_path=settings.BASE_DIR, explorer="", filters=""):

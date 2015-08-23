@@ -1,11 +1,11 @@
 from tempfile import NamedTemporaryFile
+
 from django.http import HttpResponse, FileResponse, JsonResponse
 from django.template.response import TemplateResponse
 from django.shortcuts import redirect
 from django.views.generic import View
 
-from MrRobottoStudioServer.utils import *
-
+from studioservices.utils import *
 from studio.models import FileSystemNavigator, FileData, MrrFile, AndroidDevice
 
 

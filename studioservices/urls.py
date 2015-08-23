@@ -9,7 +9,7 @@ router.register(r'login', LoginViewSet, base_name='api-login')
 router.register(r'users', UserViewSet, base_name='api-users')
 router.register(r'tokens', AuthTokenViewSet, base_name='api-tokens')
 router.register(r'devices', AndroidDeviceViewSet, base_name='api-devices')
-router.register(r'blendfiles', BlendFilesViewSet, base_name='api-blendfiles')
+router.register(r'mrrfiles', MrrFilesViewSet, base_name='api-mrrfiles')
 
 apipatterns = [
     url(r'^', include(router.urls)),

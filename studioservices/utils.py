@@ -46,6 +46,14 @@ def export_to_mrr(blender, file):
     script = os.path.join(settings.BASE_DIR,'scripts/mrrexporter','mrrexporter.py')
     subprocess.call([blender, file, '--background','--python',script])
 
+def export_blend_to_mrr(file_path):
+    script = os.path.join(settings.BASE_DIR,'scripts/','JSONExporter.py')
+    out = subprocess.check_output([settings.BLENDER_EXE, file_path, '--background','--python', script])
+    out = str(out.lower())
+    if "error" in out or "warning" in out:
+        return False
+    return True
+
 def get_modification_time(f):
     return time.ctime(os.path.getmtime(f))
 

@@ -1,3 +1,7 @@
+from scripts.mrrexporter.models import ShaderProgram
+from scripts.mrrexporter.shaders import VertexShaderSourceGenerator, FragmentShaderSourceGenerator
+
+
 class ShaderOrganizer:
     def __init__(self, models):
         self.modelsDict = {m.Name : m for m in models}
