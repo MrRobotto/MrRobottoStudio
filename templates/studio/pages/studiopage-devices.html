@@ -1,5 +1,4 @@
-
-            <div class="row">
+<div ng-controller="DevicesController">            <div class="row">
                 <div class="col-md-12">
                     <div class="panel panel-primary">
                         <div class="panel-heading">
@@ -17,7 +16,29 @@
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody ng-repeat="device in devices">
+                                    {% verbatim %}
+                                        <tr ng-class="{{ $index % 2 == 0 }} ? 'odd' : 'even'">
+                                            <td>
+                                                <div ng-if="device.is_connected">
+                                                    <i class="fa fa-circle" style="color: greenyellow;"></i> Online
+                                                </div>
+                                                <div ng-if="!device.is_connected">
+                                                    <i class="fa fa-circle" style="color: red;"></i> Offline
+                                                </div>
+                                            </td>
+                                            <td class="center">{{ device.id }}</td>
+                                            <td>{{ device.android_id }}</td>
+                                            <td>{{ device.name }}</td>
+                                            <td>{{ device.last_connection }}</td>
+                                            <td>
+                                                <button class="btn btn-xs btn-danger" ng-click="onDelete(device);">Delete</button>
+                                            </td>
+                                        </tr>
+                                    {% endverbatim %}
+                                </tbody>
+
+                                <!--<tbody>
                                     {% for device in devices %}
                                         {% if forloop.counter|divisibleby:2 %}
                                             <tr class="even">
@@ -38,7 +59,7 @@
                                                 </td>
                                             </tr>
                                     {% endfor %}
-                                </tbody>
+                                </tbody>-->
                             </table>
                         </div>
                     </div>
@@ -62,4 +83,5 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div></div>
+

@@ -28,7 +28,7 @@ def get_ip():
 def get_port():
     return settings.STUDIO_PORT
 
-def get_baser_url():
+def get_base_url():
     return "http://" + get_ip() + ":" + str(get_port())
 
 def get_directory(dir):

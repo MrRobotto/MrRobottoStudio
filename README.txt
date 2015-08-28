@@ -4,6 +4,8 @@ This proyect is considered a Django application, so it must be executed like thi
 Requeriments:
 Python 3
 Django 1.8 >
+django-rest-swagger
+qrcode
 
 The first run you should run these lines first:
 python3 manage.py makemigrations

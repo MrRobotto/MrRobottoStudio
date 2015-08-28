@@ -16,3 +16,12 @@ studioServices.factory('MrrFiles', ['$resource',
             }
         );
 }]);
+
+studioServices.factory('Devices', ['$resource',
+    function($resource) {
+        return $resource(base + 'api/v1/devices/?format=json', null,
+            {
+                'delete': {method: 'DELETE', url: base + 'api/v1/devices/:deviceId'}
+            }
+        );
+}]);

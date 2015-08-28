@@ -2,18 +2,17 @@ import io
 import os
 
 from django.contrib.auth import get_user_model, authenticate, login, logout
-from django.core.files import File
 from django.core.files.storage import default_storage
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, mixins
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import detail_route, list_route
+from rest_framework.decorators import detail_route, list_route, api_view
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, BasePermission
 from rest_framework.response import Response
-from rest_framework.reverse import reverse
 import qrcode.main
+from rest_framework.reverse import reverse
 from MrRobottoStudioServer import settings
 
 from studioservices import utils
@@ -21,8 +20,9 @@ from studioservices.models import AndroidDevice, RegistrationAttemp, MrrFile
 from studioservices.serializers import UserSerializer, AuthTokenSerializer, RegisterSerializer, LoginSerializer, \
     AndroidDeviceSerializer, MrrFilesSerializer
 
-
 User = get_user_model()
+
+
 
 class UserViewPermission(BasePermission):
 
@@ -181,7 +181,7 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Not attemp_id field in url query'}, status=status.HTTP_400_BAD_REQUEST)
             id = request.data['android_id']
             name = request.data['name']
-            pk = request.GET['attemp_id']
+            pk = request.data['attemp_id']
             attempQuery = RegistrationAttemp.objects.filter(pk=pk, user=request.user, is_used=False)
             if len(attempQuery) == 1:
                 attemp = attempQuery.first()
@@ -205,8 +205,8 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
     def get_register_data(self, request):
         token, created = Token.objects.get_or_create(user=request.user)
         attemp, created = RegistrationAttemp.objects.get_or_create(user=request.user, is_used=False)
-        url = utils.get_baser_url() + reverse("api-devices-list") + "?pk=" + str(attemp.pk)
-        return {'url': url, 'token':token.key}
+        #url = utils.get_base_url() + reverse("api-devices-list") + "?attemp_id=" + str(attemp.pk)
+        return {'base_url': utils.get_base_url(), 'path': reverse("api-root") , 'token':token.key, 'attemp_id': attemp.pk}
 
     @list_route(methods=['GET'])
     def qrcode(self, request, *args, **kwargs):
@@ -215,6 +215,29 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
         img.save(f, kind='PNG')
         f.seek(0)
         return FileResponse(f, content_type='image/png')
+
+    @detail_route(methods=['GET'])
+    def connect(self, request, *args, **kwargs):
+        pk = kwargs["pk"]
+        try:
+            device = self.get_queryset().get(pk=pk)
+            device.is_connected = True
+            device.save()
+            return Response(status=status.HTTP_200_OK)
+        except:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @detail_route(methods=['GET'])
+    def disconnect(self, request, *args, **kwargs):
+        pk = kwargs["pk"]
+        try:
+            device = self.get_queryset().get(pk=pk)
+            device.is_connected = False
+            device.save()
+            return Response(status=status.HTTP_200_OK)
+        except:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
 
 
 class MrrFilesViewSet(viewsets.ModelViewSet):
