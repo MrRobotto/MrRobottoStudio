@@ -33,6 +33,9 @@ studioControllers.controller('DevicesController', ['$scope','$interval', 'Device
         });
     }, 1000);*/
 
+    var base_url = Devices.manualregister(function() {
+        $scope.base_url = base_url["base_url"];
+    });
 
     $scope.onDelete = function(device) {
         Devices.delete({deviceId: device.id}, function() {

@@ -11,5 +11,5 @@ router.register(r'devices', AndroidDeviceViewSet, base_name='api-devices')
 router.register(r'mrrfiles', MrrFilesViewSet, base_name='api-mrrfiles')
 
 urlpatterns = [
-    url(r'^api/v1/', include(router.urls))
+    url(r'^api/', include(router.urls))
 ]

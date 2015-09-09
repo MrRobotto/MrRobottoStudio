@@ -9,19 +9,20 @@ studioServices.factory('User', ['$resource',
 
 studioServices.factory('MrrFiles', ['$resource',
     function($resource){
-        return $resource(base + 'api/v1/mrrfiles/?format=json', null,
-            {'delete': {method: 'DELETE', url: base + 'api/v1/mrrfiles/:mrrId'},
-             'select': {method: 'GET', url: base + 'api/v1/mrrfiles/:mrrId/select'},
-             'selected': {method: 'GET', url: base + 'api/v1/mrrfiles/selected/'}
+        return $resource(base + 'api/mrrfiles/?format=json', null,
+            {'delete': {method: 'DELETE', url: base + 'api/mrrfiles/:mrrId'},
+             'select': {method: 'GET', url: base + 'api/mrrfiles/:mrrId/select'},
+             'selected': {method: 'GET', url: base + 'api/mrrfiles/selected/'}
             }
         );
 }]);
 
 studioServices.factory('Devices', ['$resource',
     function($resource) {
-        return $resource(base + 'api/v1/devices/?format=json', null,
+        return $resource(base + 'api/devices/?format=json', null,
             {
-                'delete': {method: 'DELETE', url: base + 'api/v1/devices/:deviceId'}
+                'delete': {method: 'DELETE', url: base + 'api/devices/:deviceId'},
+                'manualregister': {method: 'GET', url: base + 'api/devices/manualregister'}
             }
         );
 }]);

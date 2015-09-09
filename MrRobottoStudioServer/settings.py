@@ -64,11 +64,11 @@ WSGI_APPLICATION = 'MrRobottoStudioServer.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'database/studiodb.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'studiodb.sqlite3'),
     },
     'replica': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'database/testingdb.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'testingdb.sqlite3'),
         'TEST_MIRROR': 'default'
     }
 }

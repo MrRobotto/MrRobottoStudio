@@ -9,44 +9,19 @@ from rest_framework import viewsets, mixins
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import detail_route, list_route, api_view
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, BasePermission
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import qrcode.main
 from rest_framework.reverse import reverse
 from MrRobottoStudioServer import settings
 
 from studioservices import utils
-from studioservices.models import AndroidDevice, RegistrationAttemp, MrrFile
+from studioservices.models import AndroidDevice, MrrFile
+from studioservices.permissions import UserViewPermission, AuthTokenPermissions
 from studioservices.serializers import UserSerializer, AuthTokenSerializer, RegisterSerializer, LoginSerializer, \
     AndroidDeviceSerializer, MrrFilesSerializer
 
 User = get_user_model()
-
-
-
-class UserViewPermission(BasePermission):
-
-    def has_permission(self, request, view):
-        if IsAdminUser().has_permission(request, view):
-            return True
-        if view.action in ['create']:
-            return not IsAuthenticated().has_permission(request, view)
-        if view.action in ['delete']:
-            return IsAdminUser().has_permission(request, view)
-        if view.action in ['list','retrieve','update','partial_update','qrcode']:
-            return IsAuthenticated().has_permission(request, view)
-        return False
-
-    def has_object_permission(self, request, view, obj):
-        if IsAdminUser().has_permission(request, view):
-            return True
-        if view.action in ['create']:
-            return False
-        if view.action in ['delete']:
-            return IsAdminUser().has_permission(request, view)
-        if view.action in ['list','retrieve','update','partial_update']:
-            return IsAuthenticated().has_permission(request, view) and request.user == obj
-        return False
 
 
 class RegisterViewSet(viewsets.GenericViewSet,
@@ -127,21 +102,6 @@ class UserViewSet(viewsets.GenericViewSet,
         return Response(d)
 
 
-class AuthTokenPermissions(BasePermission):
-
-    def has_permission(self, request, view):
-        if IsAdminUser().has_permission(request, view):
-            return True
-        if view.action in ['list']:
-            return IsAuthenticated().has_permission(request, view)
-        if view.action in ['create']:
-            return True
-        if view.action in ['retrieve']:
-            return IsAuthenticated().has_permission(request, view)
-        if view.action in ['destroy']:
-            return IsAuthenticated().has_permission(request, view)
-
-
 class AuthTokenViewSet(viewsets.GenericViewSet,
                    mixins.ListModelMixin,
                    mixins.RetrieveModelMixin,
@@ -177,18 +137,18 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Not android_id field in request data'}, status=status.HTTP_400_BAD_REQUEST)
             if 'name' not in request.data:
                 return Response({'error': 'Not name field in request data'}, status=status.HTTP_400_BAD_REQUEST)
-            if 'attemp_id' not in request.data:
-                return Response({'error': 'Not attemp_id field in url query'}, status=status.HTTP_400_BAD_REQUEST)
+            #if 'attemp_id' not in request.data:
+            #    return Response({'error': 'Not attemp_id field in url query'}, status=status.HTTP_400_BAD_REQUEST)
             id = request.data['android_id']
             name = request.data['name']
-            pk = request.data['attemp_id']
-            attempQuery = RegistrationAttemp.objects.filter(pk=pk, user=request.user, is_used=False)
-            if len(attempQuery) == 1:
-                attemp = attempQuery.first()
-            else:
-                return Response({'error': 'Expired registration code'}, status=status.HTTP_400_BAD_REQUEST)
-            attemp.is_used = True
-            attemp.save()
+            #pk = request.data['attemp_id']
+            #attempQuery = RegistrationAttemp.objects.filter(pk=pk, user=request.user, is_used=False)
+            #if len(attempQuery) == 1:
+            #    attemp = attempQuery.first()
+            #else:
+            #    return Response({'error': 'Expired registration code'}, status=status.HTTP_400_BAD_REQUEST)
+            #attemp.is_used = True
+            #attemp.save()
             device, created1 = AndroidDevice.objects.get_or_create(android_id=id, user=request.user)
             if name == "":
                 name = id
@@ -204,9 +164,9 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
 
     def get_register_data(self, request):
         token, created = Token.objects.get_or_create(user=request.user)
-        attemp, created = RegistrationAttemp.objects.get_or_create(user=request.user, is_used=False)
+        #attemp, created = RegistrationAttemp.objects.get_or_create(user=request.user, is_used=False)
         #url = utils.get_base_url() + reverse("api-devices-list") + "?attemp_id=" + str(attemp.pk)
-        return {'base_url': utils.get_base_url(), 'path': reverse("api-root") , 'token':token.key, 'attemp_id': attemp.pk}
+        return {'base_url': utils.get_base_url(), 'token':token.key}
 
     @list_route(methods=['GET'])
     def qrcode(self, request, *args, **kwargs):
@@ -215,6 +175,11 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
         img.save(f, kind='PNG')
         f.seek(0)
         return FileResponse(f, content_type='image/png')
+
+    @list_route(methods=['GET'])
+    def manualregister(self, request, *args, **kwargs):
+        d = {'base_url': utils.get_base_url()}
+        return Response(d)
 
     @detail_route(methods=['GET'])
     def connect(self, request, *args, **kwargs):
@@ -304,11 +269,14 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
     @detail_route(methods=['GET'])
     def download(self, request, *args, **kwargs):
         pk = kwargs['pk']
-        files = self.get_queryset().filter(pk=pk)
-        f = files[0]
-        r = FileResponse(f.mrr_file, content_type="application/octet-stream")
-        r['Content-Disposition'] = 'attachment; filename="' + f.filename + '"'
-        return r
+        try:
+            f = self.get_queryset().get(pk=pk)
+            r = FileResponse(f.mrr_file, content_type="application/octet-stream")
+            r['Content-Disposition'] = 'attachment; filename="' + f.filename + '"'
+            return r
+        except:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
 
     def select_file(self, pk):
         selecteds = self.get_queryset().filter(is_selected=True)

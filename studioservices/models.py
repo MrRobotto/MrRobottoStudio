@@ -12,10 +12,10 @@ class AndroidDevice(models.Model):
     is_connected = models.BooleanField(default=False)
     #is_updated, last_mrr, last_update
 
-class RegistrationAttemp(models.Model):
-    user = models.ForeignKey(to=User)
-    date = models.DateField(default=timezone.now)
-    is_used = models.BooleanField(default=False)
+#class RegistrationAttemp(models.Model):
+#    user = models.ForeignKey(to=User)
+#    date = models.DateField(default=timezone.now)
+#    is_used = models.BooleanField(default=False)
 
 #Cambiar blendfile por mrrfile
 class MrrFile(models.Model):
