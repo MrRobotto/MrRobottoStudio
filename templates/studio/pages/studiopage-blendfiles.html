@@ -8,7 +8,7 @@
                         </div>
                         <div class="panel-body">
                             {% verbatim %}
-                                {{ selected_mrr.filename }}
+                                {{ selected_mrr.base_name }}
                             {% endverbatim %}
                         </div>
                     </div>
@@ -20,12 +20,20 @@
                         </div>
                         <div class="panel-body">
                             <form method="post" action="/studio/blender-files/" enctype="multipart/form-data">
+                                <!-- Blend files -->
                                 <div class="form-group">
                                     <label for="inputBlend">Blend file input</label>
-                                    <input name="file" type="file" id="inputBlend">
+                                    <input name="blend" type="file" id="inputBlend">
                                     <p class="help-block">Select a .blend file to export</p>
                                 </div>
-                              <button class="btn btn-info" type="submit">Upload</button>
+                                <!-- Textures -->
+                                <div class="form-group">
+                                    <label for="inputBlend">Texture file input</label>
+                                    <input name="file" type="file" id="inputBlend">
+                                    <p class="help-block">Select a texture file to upload</p>
+                                </div>
+
+                                <button class="btn btn-info" type="submit">Upload</button>
                                 {% csrf_token %}
                             </form>
                         </div>
@@ -54,7 +62,7 @@
                                     {% verbatim %}
                                         <tr ng-class="{{ $index % 2 == 0 }} ? 'odd' : 'even'">
                                             <td>{{ mrr.id }}</td>
-                                            <td>{{ mrr.filename }}</td>
+                                            <td>{{ mrr.base_name }}</td>
                                             <td>{{ mrr.upload_date }}</td>
                                             <td><i ng-class="mrr.is_selected ? 'fa fa-check' : 'fa fa-close'"></i></td>
                                             <td>

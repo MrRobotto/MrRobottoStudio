@@ -1629,10 +1629,13 @@ class MaterialsExporter:
             for image in images:
                 if image.name == activeTextureName:
                     path = image.filepath_from_user()
-                    if os.path.exists(path):
-                        t=Texture(activeTextureName,index=self.textureIndex,path=path)
-                        self.textureIndex+=1
-                        return t
+                    #We try to find the texture
+                    if not os.path.exists(path):
+                        #Else we try to find it in the same directory
+                        path = os.path.join(os.path.dirname(D.filepath), activeTextureName)
+                    t=Texture(activeTextureName,index=self.textureIndex,path=path)
+                    self.textureIndex+=1
+                    return t
         except:
             return None
     def export(self):
@@ -2093,55 +2096,52 @@ class SceneObjectsListExporter:
         organizer.setMaxShader()
         SceneExporter(scene).export()
 
-class SceneObjectExporter2:
-    def __init__(self, name, sceneObjs):
-        self.name = name
-        self.sceneObjs = sceneObjs
-    def export(self):
-        try:
-            obj = self.sceneObjs[self.name]
-        except:
-            return None
-        if (obj.type == 'MESH'):
-            model = Model()
-            ModelExporter(obj, model).export()
-            #self.outList.addSceneObj(model, scene)
-            return model
-        elif (obj.type == 'CAMERA'):
-            camera = Camera()
-            CameraExporter(obj, camera).export()
-            #self.outList.addSceneObj(camera, scene)
-            return camera
-        elif (obj.type == 'LAMP'):
-            light = Light()
-            LightExporter(obj, light).export()
-            #self.outList.addSceneObj(light, scene)
-            return light
+#class SceneObjectExporter2:
+#    def __init__(self, name, sceneObjs):
+#        self.name = name
+#        self.sceneObjs = sceneObjs
+#    def export(self):
+#        try:
+#            obj = self.sceneObjs[self.name]
+#        except:
+#            return None
+#        if (obj.type == 'MESH'):
+#            model = Model()
+#            ModelExporter(obj, model).export()
+#            #self.outList.addSceneObj(model, scene)
+#            return model
+#        elif (obj.type == 'CAMERA'):
+#            camera = Camera()
+#            CameraExporter(obj, camera).export()
+#            #self.outList.addSceneObj(camera, scene)
+#            return camera
+#        elif (obj.type == 'LAMP'):
+#            light = Light()
+#            LightExporter(obj, light).export()
+#            #self.outList.addSceneObj(light, scene)
+#            return light
             
 
-class Exporter2:
-
-    def __init__(self, objName):
-        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
-        #self.filename = os.path.splitext(D.filepath)[0]
-        self.filename = os.path.splitext(D.filepath)[0] + "_" + objName
-        self.objName = objName
-        
-    def getTexture(self, obj):
-        textures = dict()
-        if obj.Type == SCENEOBJTYPE_MODEL:
-            for mat in obj.Materials:
-                if mat.hasTexture():
-                    textures[mat.Texture.Name] = mat.Texture.path
-        return textures
-            
-    def export(self):
-        #SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
-        #sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
-        obj = SceneObjectExporter2(self.objName, D.objects).export()
-        if obj is not None:
-            objJson = json.dumps(obj, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
-            writeToFile2(self.filename + '.mrr', objJson, self.getTexture(obj))
+#class Exporter2:
+#    def __init__(self, objName):
+#        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
+#        #self.filename = os.path.splitext(D.filepath)[0]
+#        self.filename = os.path.splitext(D.filepath)[0] + "_" + objName
+#        self.objName = objName
+#    def getTexture(self, obj):
+#        textures = dict()
+#        if obj.Type == SCENEOBJTYPE_MODEL:
+#            for mat in obj.Materials:
+#                if mat.hasTexture():
+#                    textures[mat.Texture.Name] = mat.Texture.path
+#        return textures
+#    def export(self):
+#        #SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
+#        #sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+#        obj = SceneObjectExporter2(self.objName, D.objects).export()
+#        if obj is not None:
+#            objJson = json.dumps(obj, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
+#            writeToFile(self.filename + '.mrr', objJson, self.getTexture(obj))
 
 def prettyPrintJSON(scene):
     """Pretty printing long lists"""
@@ -2176,12 +2176,12 @@ def prettyPrintJSON(scene):
             i = i+1
     return r
 
-def writeToFile(filename, content):
-    file = open(filename,"w")
-    file.write(content)
-    file.close()
+#def writeToFile(filename, content):
+#    file = open(filename,"w")
+#    file.write(content)
+#    file.close()
 
-def writeToFile2(filename, json, textures):
+def writeToFile(filename, json, textures):
     file = open(filename, "wb")
     file.write(bytearray('MRROBOTTOFILE\n', encoding='ascii'))
     file.write(bytearray('JSON',encoding='ascii'))
@@ -2237,7 +2237,7 @@ class Exporter:
         #writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
         #writeToFile(self.filename + EXT, sceneJson)
         #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
-        writeToFile2(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
+        writeToFile(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
         
 class Executor:
     def __init__(self):

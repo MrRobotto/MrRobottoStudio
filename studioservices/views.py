@@ -211,44 +211,67 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
     queryset = MrrFile.objects.all()
     serializer_class = MrrFilesSerializer
 
-
     def get_queryset(self):
         if self.request.user.is_staff:
             return MrrFile.objects.all().order_by('-upload_date')
         else:
             return MrrFile.objects.filter(user=self.request.user).order_by('-upload_date')
 
+    def save_blend(self, request):
+        #Obtain the file
+        f = request.FILES['blend']
+        base_name = os.path.splitext(os.path.basename(f.name))[0]
+        mrr = self.get_queryset().filter(user=self.request.user, base_name=base_name).first()
+        created = not (mrr == None)
+        if not created:
+            try:
+                os.remove(mrr.blend_file.path)
+            except Exception as e:
+                print(e)
+                pass
+            try:
+                os.remove(mrr.mrr_file.path)
+            except Exception as e:
+                print(e)
+                pass
+        #Save the file
+        username = request.user.username
+        name_stored_file = default_storage.save(username + "/" + f.name, f)
+        base_name2 = name_stored_file.split(".")[0]
+        path = os.path.join(settings.MEDIA_ROOT, name_stored_file)
+        #Export file
+        if not utils.export_blend_to_mrr(path):
+            os.remove(path)
+            return Response({'error': 'Error exporting file'}, status=status.HTTP_400_BAD_REQUEST)
+        mrr_path = os.path.join(os.path.dirname(path), base_name2+".mrr")
+        #Save the model
+        if created:
+            mrr = MrrFile(user=self.request.user, base_name=base_name)
+        mrr.upload_date = timezone.now()
+        mrr.blend_file.name = path
+        mrr.mrr_file.name = mrr_path
+        mrr.save()
+        self.select_file(mrr.pk)
+        return mrr, created
+
+    def save_textures(self, request):
+        i = 0
+        more_tex = True
+        textures = []
+        while more_tex:
+            try:
+                t = request.FILES['tex'+i]
+                textures.append(t)
+            except:
+                more_tex = False
+            i += 1
+        return textures
+
     def create(self, request, *args, **kwargs):
-        if 'file' in request.FILES:
-            f = request.FILES['file']
-            filename = os.path.splitext(os.path.basename(f.name))[0]
-            blends = self.get_queryset().filter(user=self.request.user, filename=filename)
-            created = len(blends) == 0
-            if not created:
-                try:
-                    mrr = blends[0]
-                    os.remove(mrr.blend_file.path)
-                except:
-                    pass
-            name = default_storage.save(f.name, f)
-            path = os.path.join(settings.MEDIA_ROOT, name)
-            if not utils.export_blend_to_mrr(path):
-                os.remove(path)
-                return Response({'error': 'Error exporting file'}, status=status.HTTP_400_BAD_REQUEST)
-            if created:
-                blend = MrrFile(user=self.request.user, filename=filename)
-                blend.upload_date = timezone.now()
-                blend.blend_file.name = path
-                blend.mrr_file.name = os.path.join(os.path.dirname(blend.blend_file.path), filename+".mrr")
-                blend.save()
-            else:
-                blend = blends.first()
-                blend.upload_date = timezone.now()
-                blend.blend_file.name = path
-                blend.mrr_file.name = os.path.join(os.path.dirname(blend.blend_file.path), filename+".mrr")
-                blend.save()
-            self.select_file(blend.pk)
-            return Response(MrrFilesSerializer().to_representation(blend), status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        if 'blend' in request.FILES:
+            self.save_textures(request)
+            mrr, created = self.save_blend(request)
+            return Response(MrrFilesSerializer().to_representation(mrr), status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         else:
             return Response({'error': 'No file selected'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -272,11 +295,10 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
         try:
             f = self.get_queryset().get(pk=pk)
             r = FileResponse(f.mrr_file, content_type="application/octet-stream")
-            r['Content-Disposition'] = 'attachment; filename="' + f.filename + '"'
+            r['Content-Disposition'] = 'attachment; filename="' + f.base_name + '.mrr"'
             return r
         except:
             return Response(status=status.HTTP_404_NOT_FOUND)
-
 
     def select_file(self, pk):
         selecteds = self.get_queryset().filter(is_selected=True)

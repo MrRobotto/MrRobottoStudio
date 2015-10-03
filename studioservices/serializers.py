@@ -71,7 +71,7 @@ class MrrFilesSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         return {
             'id': instance.pk,
-            'filename': instance.filename,
+            'base_name': instance.base_name,
             'is_selected': instance.is_selected,
             'upload_date': instance.upload_date,
             'user': instance.user.username

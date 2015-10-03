@@ -20,7 +20,7 @@ class AndroidDevice(models.Model):
 #Cambiar blendfile por mrrfile
 class MrrFile(models.Model):
     user = models.ForeignKey(to=User)
-    filename = models.CharField(max_length=80)
+    base_name = models.CharField(max_length=80)
     blend_file = models.FileField()
     mrr_file = models.FileField()
     is_selected = models.BooleanField(default=False)
