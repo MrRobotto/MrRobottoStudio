@@ -1,0 +1,32 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en" ng-app="StudioApp">
+<head>
+    {% include "base/studio-headers.html" %}
+</head>
+<body>
+<div id="wrapper">
+    {% block page-wrapper %}
+        {% include "base/studio-navbar.html" %}
+        <div id="page-wrapper">
+            {% block page-title %}
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1>{{ page_title }}
+                            <small>{{ page_subtitle }}</small>
+                        </h1>
+                    </div>
+                </div>
+            {% endblock %}
+
+            {% block content %}
+
+            {% endblock %}
+        </div>
+    {% endblock %}
+</div>
+<!-- /#wrapper -->
+
+{% include "base/studio-scripts.html" %}
+</body>
+</html>

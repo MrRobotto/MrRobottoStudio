@@ -38,7 +38,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'studio',
     'studioweb',
     'studioservices'
 )
@@ -89,7 +88,7 @@ USE_TZ = True
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR,  'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'studioweb/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -114,7 +113,7 @@ STATIC_ROOT = BASE_DIR
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = (
-    os.path.join(STATIC_ROOT, 'static'),
+    os.path.join(STATIC_ROOT, 'studioweb/static'),
 )
 
 LOGIN_URL = "/studio/login-page/"

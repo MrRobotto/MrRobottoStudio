@@ -7,14 +7,13 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, mixins
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import detail_route, list_route, api_view
+from rest_framework.decorators import detail_route, list_route
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import qrcode.main
-from rest_framework.reverse import reverse
-from MrRobottoStudioServer import settings
 
+from MrRobottoStudioServer import settings
 from studioservices import utils
 from studioservices.models import AndroidDevice, MrrFile
 from studioservices.permissions import UserViewPermission, AuthTokenPermissions
@@ -236,7 +235,8 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
                 pass
         #Save the file
         username = request.user.username
-        name_stored_file = default_storage.save(username + "/" + f.name, f)
+        user_path = os.path.join(settings.MEDIA_ROOT, username, f.name)
+        name_stored_file = default_storage.save(user_path, f)
         base_name2 = name_stored_file.split(".")[0]
         path = os.path.join(settings.MEDIA_ROOT, name_stored_file)
         #Export file
@@ -245,7 +245,7 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Error exporting file'}, status=status.HTTP_400_BAD_REQUEST)
         mrr_path = os.path.join(os.path.dirname(path), base_name2+".mrr")
         #Save the model
-        if created:
+        if not created:
             mrr = MrrFile(user=self.request.user, base_name=base_name)
         mrr.upload_date = timezone.now()
         mrr.blend_file.name = path

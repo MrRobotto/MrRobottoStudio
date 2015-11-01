@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import views as auth_views, authenticate, login, logout
-from rest_framework.request import Request
+from django.contrib.auth import logout
+
 from MrRobottoStudioServer import settings
 from studioservices import views as services_views
 
+
 # Create your views here.
-from django.template.response import TemplateResponse
 
 def root(request):
     if request.path == "/":
@@ -43,9 +43,9 @@ def studio_login_page(request):
         if 'login' in request.POST:
             return login_user(request)
         else:
-            return TemplateResponse(request, "studio/studio-login.html")
+            return render(request, "pages/studio-login.html")
     else:
-        return TemplateResponse(request, "studio/studio-login.html")
+        return render(request, "pages/studio-login.html")
 
 @login_required()
 def studio_logout_user(request):
@@ -54,23 +54,21 @@ def studio_logout_user(request):
 
 @login_required()
 def studio_home(request):
-    return TemplateResponse(request, "studio/studio.html", context={'page':'dashboard', 'page_title': 'Dashboard'})#, context=context)
-
-@login_required()
-def studio_register_device(request):
-    return TemplateResponse(request, "studio/studio.html", context={'page':'registerdevice',  'page_title': 'Device Registration'})#, context=context)
+    return render(request, "pages/studiopage-dashboard.html", context={'page': 'dashboard', 'page_title': 'Dashboard'})
 
 @login_required()
 def studio_devices(request):
     devices = services_views.AndroidDeviceViewSet.as_view({'get':'list'})(request)
-    return TemplateResponse(request, "studio/studio.html", context={'page': 'devices', 'page_title':'Devices', 'devices': devices.data})
+    return render(request, "pages/studiopage-devices.html",
+                  context={'page': 'devices', 'page_title': 'Devices', 'devices': devices.data})
 
 @login_required()
 def studio_blender_files(request):
     if request.method == 'GET':
         response = services_views.MrrFilesViewSet.as_view({'get': 'list'})(request)
         blends = response.data
-        return TemplateResponse(request, "studio/studio.html", context={'page': 'blendfiles', 'page_title': 'Blender Files', 'blends': blends})
+        return render(request, "pages/studiopage-blendfiles.html",
+                      context={'page': 'blendfiles', 'page_title': 'Blender Files', 'blends': blends})
     elif request.method == 'POST':
         response = services_views.MrrFilesViewSet.as_view({'post': 'create'})(request)
         return redirect("/studio/blender-files")

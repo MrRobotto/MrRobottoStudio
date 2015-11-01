@@ -1,0 +1,130 @@
+{% extends "base/studio-base-page.html" %}
+
+{% block page-title %}
+    <div class="row">
+        <div class="col-lg-12">
+            <h1>
+                {{ page_title }}
+                <span class="">
+                    <button type="button" class="btn btn-success btn-lg" data-toggle="modal" data-target="#myModal">
+                        Register device
+                    </button>
+                </span>
+            </h1>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block content %}
+<div ng-controller="DevicesController">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-mobile-phone"></i> Devices list</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped table-bordered table-hover" id="dataTables-example">
+                        <thead>
+                            <tr>
+                                <th>Is Connected</th>
+                                <th>StudioID</th>
+                                <th>AndroidID</th>
+                                <th>Name</th>
+                                <th>Last Connection</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody ng-repeat="device in devices">
+                            {% verbatim %}
+                                <tr ng-class="{{ $index % 2 == 0 }} ? 'odd' : 'even'">
+                                    <td>
+                                        <div ng-if="device.is_connected">
+                                            <i class="fa fa-circle" style="color: greenyellow;"></i> Online
+                                        </div>
+                                        <div ng-if="!device.is_connected">
+                                            <i class="fa fa-circle" style="color: red;"></i> Offline
+                                        </div>
+                                    </td>
+                                    <td class="center">{{ device.id }}</td>
+                                    <td>{{ device.android_id }}</td>
+                                    <td>{{ device.name }}</td>
+                                    <td>{{ device.last_connection }}</td>
+                                    <td>
+                                        <button class="btn btn-xs btn-danger" ng-click="onDelete(device);">Delete</button>
+                                    </td>
+                                </tr>
+                            {% endverbatim %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal -->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="myModalLabel">Register device</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-offset-3">
+                            <img class="img-responsive" src="/api/devices/qrcode"
+                                 style="max-height: 300px; max-width: 300px;">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-offset-2">
+                            <h2>
+                                {% verbatim %}
+                                {{ base_url }}
+                                {% endverbatim %}
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--    <div class="row" id="register">
+        <div class="col-lg-12">
+            <h1>Device Register <small>{{ page_subtitle }}</small></h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-qrcode"></i> QR Code Registration</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <img class="img-responsive" src="/api/devices/qrcode" style="max-height: 300px; max-width: 300px;">
+                        </div>
+                        <div class="col-md-8">
+                            <h2>
+                            {% verbatim %}
+                                URL: {{ base_url }}
+                            {% endverbatim %}
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>-->
+{% endblock %}

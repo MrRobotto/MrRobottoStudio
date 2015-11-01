@@ -1,8 +1,6 @@
 from django.conf.urls import patterns, url, include
 from django.conf.urls.static import static
 
-from studio.views import ServicesView
-#from studio import urls as studio_urls
 from studioweb import urls as studio_urls
 from studioservices import urls as services_urls
 import MrRobottoStudioServer.settings as settings
