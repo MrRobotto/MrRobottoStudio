@@ -1,20 +1,22 @@
-import os
-import sys
 import json
-import time
-import threading
-import subprocess
 import multiprocessing
+import os
 import struct
+import subprocess
+import sys
+import threading
+import time
 
+import bmesh
 import bpy
 import bpy.path
-import bmesh
-from mathutils import Vector, Quaternion, Matrix,Color
 import bpy.types
+from mathutils import Vector, Quaternion, Matrix, Color
 
 D = bpy.data
 C = bpy.context
+
+VERSION = "0.9"
 
 EXT = ".json"
 MAX_DIGITS = 6
@@ -205,6 +207,14 @@ def mround(f):
         return round(f, MAX_DIGITS)
 
 
+class MrrMetadata:
+    def __init__(self, version=VERSION, hasHierarchy=True):
+        self.Version = version
+        self.HasHierarchy = hasHierarchy
+
+    def __iter__(self):
+        yield from self.__dict__.items()
+
 class Vertex:
     """Main vertex class"""
     def __init__(self, index, co, normal, mat=None, uv=None, w=None, bind=None):
@@ -352,7 +362,6 @@ class GeometryList:
         verts.sort()
         return [e for v in verts for e in list(v)]
 
-
 class Mesh:
     def __init__(self, drawType=DRAWTYPE_TRIANGLES):
         self.DrawType = drawType
@@ -384,7 +393,6 @@ class Mesh:
     def getMaterialIndices(self):
         return self._materialIndices
 
-
 class Attribute:
     def __init__(self, AttributeName, Name, Index, DataType):
         self.Attribute = AttributeName
@@ -410,7 +418,6 @@ class Attribute:
     def __repr__(self):
         s = "attribute " + self.DataType + " " + self.Name + ";"
         return s
-
 
 class AttributeList:
     def __init__(self):
@@ -504,7 +511,6 @@ class Uniform:
                 s += "["+str(self.Count)+"]"
             s += ";"
             return s
-
 
 class UniformList:
     def __init__(self):
@@ -742,7 +748,8 @@ class Hierarchy:
     def __iter__(self):
         yield from self.root.__dict__.items()
 
-class SceneObjectsList:
+
+class SceneTree:
     def __init__(self):
         self.SceneObjects = []
         self.Hierarchy = Hierarchy()
@@ -803,13 +810,11 @@ class SceneObj:
     def __iter__(self):
         yield from self.__dict__.items()
 
-
 class Scene(SceneObj):
     def __init__(self, clearColor=SCENE_CLEARCOLOR):
         SceneObj.__init__(self, DEFAULT_NAME_SCENE, SCENEOBJTYPE_SCENE)
         self.ClearColor = clearColor
         self.AmbientLightColor = None
-
 
 class Model(SceneObj):
     def __init__(self):
@@ -818,12 +823,10 @@ class Model(SceneObj):
         self.Materials = MaterialList()
         self.Skeleton = None
 
-
 class Camera(SceneObj):
     def __init__(self):
         SceneObj.__init__(self, DEFAULT_NAME_CAMERA, SCENEOBJTYPE_CAMERA)
         self.Lens = None
-
 
 class Light(SceneObj):
     def __init__(self):
@@ -831,13 +834,11 @@ class Light(SceneObj):
         self.LightType = None
         self.Color = None
 
-
 class PointLight(Light):
     def __init__(self):
         Light.__init__(self)
         self.LinearAttenuation = None
         self.QuadraticAttenuation = None
-
 
 class SpotLight(Light):
     def __init__(self):
@@ -847,7 +848,7 @@ class SpotLight(Light):
         self.SpotSize = None
 
 
-# Tools
+# Tools------------------------------------------------------------------------
 class BoneIndicesAligner:
     def __init__(self, skeletonOb):
         self.map = dict()
@@ -1205,7 +1206,6 @@ class ShaderGenerator:
         vs, fs = self.genSource()
         return ShaderProgram(self.name, self.configurer, vs, fs)
 
-
 class ShaderOrganizer:
     def __init__(self, models):
         self.modelsDict = {m.Name: m for m in models}
@@ -1282,210 +1282,6 @@ class ShaderOrganizer:
         return m
 
 
-class VertexAttribute(Attribute):
-    def __init__(self):
-        Attribute.__init__(self, ATTRNAME_VERTEX, ANAME_VERTEX, INDEX_VERTEX, DATATYPEATTR_VERTEX)
-
-
-class NormalAttribute(Attribute):
-    def __init__(self):
-        Attribute.__init__(self, ATTRNAME_NORMAL, ANAME_NORMAL, INDEX_NORMAL, DATATYPEATTR_NORMAL)
-
-
-class MaterialAttribute(Attribute):
-    def __init__(self):
-        Attribute.__init__(self, ATTRNAME_MATERIAL, ANAME_MATERIAL, INDEX_MATERIAL, DATATYPEATTR_MATERIAL)
-
-
-class TextureAttribute(Attribute):
-    def __init__(self):
-        Attribute.__init__(self, ATTRNAME_TEXTURE, ANAME_TEXTURECO, INDEX_TEXTURE, DATATYPEATTR_TEXTURE)
-
-
-class WeightAttribute(Attribute):
-    def __init__(self):
-        Attribute.__init__(self, ATTRNAME_WEIGHT, ANAME_WEIGHT, INDEX_WEIGHT, DATATYPEATTR_WEIGHT)
-
-
-class BIndAttribute(Attribute):
-    def __init__(self):
-        Attribute.__init__(self, ATTRNAME_BIND, ANAME_BIND, INDEX_BIND, DATATYPEATTR_BIND)
-
-
-class VertexKey(AttributeKey):
-    def __init__(self):
-        AttributeKey.__init__(self, ATTRNAME_VERTEX, SIZEKEY_VERTEX, DATATYPEKEY_VERTEX)
-
-
-class NormalKey(AttributeKey):
-    def __init__(self):
-        AttributeKey.__init__(self, ATTRNAME_NORMAL, SIZEKEY_NORMAL, DATATYPEKEY_NORMAL)
-
-
-class MaterialKey(AttributeKey):
-    def __init__(self):
-        AttributeKey.__init__(self, ATTRNAME_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
-
-
-class TextureKey(AttributeKey):
-    def __init__(self):
-        AttributeKey.__init__(self, ATTRNAME_TEXTURE, SIZEKEY_TEXTURE, DATATYPEKEY_TEXTURE)
-
-
-class WeightKey(AttributeKey):
-    def __init__(self):
-        AttributeKey.__init__(self, ATTRNAME_WEIGHT, SIZEKEY_WEIGHT, DATATYPEKEY_WEIGHT)
-
-
-class BIndKey(AttributeKey):
-    def __init__(self):
-        AttributeKey.__init__(self, ATTRNAME_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
-
-
-class MVPUniformKey(UniformKey):
-    def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MVP_MATRIX, UNIFORM_MVP_MATRIX, RENDERING_LEVEL_SCENE, 1)
-        self.uniformName = UNAME_MVP_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class ModelMatrixUniformKey(UniformKey):
-    def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MODEL_MATRIX, UNIFORM_MODEL_MATRIX, RENDERING_LEVEL_OBJECT, 1)
-        self.uniformName = UNAME_MODEL_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class ViewMatrixUniformKey(UniformKey):
-    def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_VIEW_MATRIX, UNIFORM_VIEW_MATRIX, RENDERING_LEVEL_OBJECT, 1)
-        self.uniformName = UNAME_VIEW_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class ModelViewMatrixUniformKey(UniformKey):
-    def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MODELVIEW_MATRIX, UNIFORM_MODELVIEW_MATRIX, RENDERING_LEVEL_SCENE, 1)
-        self.uniformName = UNAME_MODELVIEW_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class NormalMatrixUniformKey(UniformKey):
-    def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_NORMAL_MATRIX, UNIFORM_NORMAL_MATRIX, RENDERING_LEVEL_SCENE, 1)
-        self.uniformName = UNAME_NORMAL_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class ProjectionMatrixUniformKey(UniformKey):
-    def __init__(self):
-        UniformKey.__init__(self, UNIFORMGENERATOR_PROJECTION_MATRIX, UNIFORM_PROJECTION_MATRIX, RENDERING_LEVEL_OBJECT,
-                            1)
-        self.uniformName = UNAME_PROJECTION_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class MaterialAmbientColorKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_AMBIENT_COLOR, UNIFORM_MATERIAL_AMBIENT_COLOR,
-                            RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_MATERIAL_AMBIENT_COLOR
-        self.uniformDataType = DATATYPE_VEC4
-
-
-class MaterialAmbientIntensityKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_AMBIENT_INTENSITY, UNIFORM_MATERIAL_AMBIENT_INTENSITY,
-                            RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_MATERIAL_AMBIENT_INTENSITY
-        self.uniformDataType = DATATYPE_FLOAT
-
-
-class MaterialDiffuseColorKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_DIFFUSE_COLOR, UNIFORM_MATERIAL_DIFFUSE_COLOR,
-                            RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_MATERIAL_DIFFUSE_COLOR
-        self.uniformDataType = DATATYPE_VEC4
-
-
-class MaterialDiffuseIntensityKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_DIFFUSE_INTENSITY, UNIFORM_MATERIAL_DIFFUSE_INTENSITY,
-                            RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_MATERIAL_DIFFUSE_INTENSITY
-        self.uniformDataType = DATATYPE_FLOAT
-
-
-class MaterialSpecularColorKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_SPECULAR_COLOR, UNIFORM_MATERIAL_SPECULAR_COLOR,
-                            RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_MATERIAL_SPECULAR_COLOR
-        self.uniformDataType = DATATYPE_VEC4
-
-
-class MaterialSpecularIntensityKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_SPECULAR_INTENSITY, UNIFORM_MATERIAL_SPECULAR_INTENSITY,
-                            RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_MATERIAL_SPECULAR_INTENSITY
-        self.uniformDataType = DATATYPE_FLOAT
-
-
-class BoneMatrixKey(UniformKey):
-    def __init__(self, count):
-        UniformKey.__init__(self, UNIFORMGENERATOR_BONE_MATRIX, UNIFORM_BONE_MATRIX, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_BONE_MATRIX
-        self.uniformDataType = DATATYPE_MAT4
-
-
-class TexturedMaterialKey(UniformKey):
-    def __init__(self, count=1):
-        UniformKey.__init__(self, UNIFORMGENERATOR_TEXTURED_MATERIAL, UNIFORM_TEXTURED_MATERIAL, count)
-        self.uniformName = UNAME_TEXTURED_MATERIAL
-        self.uniformDataType = DATATYPE_FLOAT
-
-
-class TextureSamplerKey(UniformKey):
-    def __init__(self, count=1, index=0):
-        UniformKey.__init__(self, UNIFORMGENERATOR_TEXTURE, UNIFORM_TEXTURE, RENDERING_LEVEL_OBJECT, count)
-        self.uniformName = UNAME_TEXTURE_SAMPLER
-        self.uniformDataType = DATATYPE_SAMPLER2D
-
-
-class LightPositionKey(UniformKey):
-    def __init__(self, count=1, index=0):
-        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION, UNIFORM_LIGHT_POSITION, RENDERING_LEVEL_OBJECT,
-                            count, index)
-        self.uniformName = UNAME_LIGHT_POSITION
-        self.uniformDataType = DATATYPE_VEC4
-
-
-class LightColorKey(UniformKey):
-    def __init__(self, count=1, index=0):
-        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR, UNIFORM_LIGHT_COLOR, RENDERING_LEVEL_OBJECT, count,
-                            index)
-        self.uniformName = UNAME_LIGHT_COLOR
-        self.uniformDataType = DATATYPE_VEC4
-
-
-class LightsPositionArrayKey(UniformKey):
-    def __init__(self, count=1):
-        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION_ARRAY, UNIFORM_LIGHT_POSITION_ARRAY,
-                            RENDERING_LEVEL_SCENE, count)
-        self.uniformName = UNAME_LIGHT_POSITION_ARRAY
-        self.uniformDataType = DATATYPE_VEC4
-
-
-class LightsColorArrayKey(UniformKey):
-    def __init__(self, count=1):
-        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR_ARRAY, UNIFORM_LIGHT_COLOR_ARRAY, RENDERING_LEVEL_SCENE,
-                            count)
-        self.uniformName = UNAME_LIGHT_COLOR_ARRAY
-        self.uniformDataType = DATATYPE_VEC4
-
-
 def getAttributeFromAttributeKey(attrib):
     if isinstance(attrib, VertexKey):
         return VertexAttribute()
@@ -1501,6 +1297,181 @@ def getAttributeFromAttributeKey(attrib):
         return BIndAttribute()
 
 
+# TODO: Change all of this for a speacialized method which it generates all
+class VertexAttribute(Attribute):
+    def __init__(self):
+        Attribute.__init__(self, ATTRNAME_VERTEX, ANAME_VERTEX, INDEX_VERTEX, DATATYPEATTR_VERTEX)
+
+class NormalAttribute(Attribute):
+    def __init__(self):
+        Attribute.__init__(self, ATTRNAME_NORMAL, ANAME_NORMAL, INDEX_NORMAL, DATATYPEATTR_NORMAL)
+
+class MaterialAttribute(Attribute):
+    def __init__(self):
+        Attribute.__init__(self, ATTRNAME_MATERIAL, ANAME_MATERIAL, INDEX_MATERIAL, DATATYPEATTR_MATERIAL)
+
+class TextureAttribute(Attribute):
+    def __init__(self):
+        Attribute.__init__(self, ATTRNAME_TEXTURE, ANAME_TEXTURECO, INDEX_TEXTURE, DATATYPEATTR_TEXTURE)
+
+class WeightAttribute(Attribute):
+    def __init__(self):
+        Attribute.__init__(self, ATTRNAME_WEIGHT, ANAME_WEIGHT, INDEX_WEIGHT, DATATYPEATTR_WEIGHT)
+
+class BIndAttribute(Attribute):
+    def __init__(self):
+        Attribute.__init__(self, ATTRNAME_BIND, ANAME_BIND, INDEX_BIND, DATATYPEATTR_BIND)
+
+
+class VertexKey(AttributeKey):
+    def __init__(self):
+        AttributeKey.__init__(self, ATTRNAME_VERTEX, SIZEKEY_VERTEX, DATATYPEKEY_VERTEX)
+
+class NormalKey(AttributeKey):
+    def __init__(self):
+        AttributeKey.__init__(self, ATTRNAME_NORMAL, SIZEKEY_NORMAL, DATATYPEKEY_NORMAL)
+
+class MaterialKey(AttributeKey):
+    def __init__(self):
+        AttributeKey.__init__(self, ATTRNAME_MATERIAL, SIZEKEY_MATERIAL, DATATYPEKEY_MATERIAL)
+
+class TextureKey(AttributeKey):
+    def __init__(self):
+        AttributeKey.__init__(self, ATTRNAME_TEXTURE, SIZEKEY_TEXTURE, DATATYPEKEY_TEXTURE)
+
+class WeightKey(AttributeKey):
+    def __init__(self):
+        AttributeKey.__init__(self, ATTRNAME_WEIGHT, SIZEKEY_WEIGHT, DATATYPEKEY_WEIGHT)
+
+class BIndKey(AttributeKey):
+    def __init__(self):
+        AttributeKey.__init__(self, ATTRNAME_BIND, SIZEKEY_BIND, DATATYPEKEY_BIND)
+
+
+class MVPUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MVP_MATRIX, UNIFORM_MVP_MATRIX, RENDERING_LEVEL_SCENE, 1)
+        self.uniformName = UNAME_MVP_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class ModelMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MODEL_MATRIX, UNIFORM_MODEL_MATRIX, RENDERING_LEVEL_OBJECT, 1)
+        self.uniformName = UNAME_MODEL_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class ViewMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_VIEW_MATRIX, UNIFORM_VIEW_MATRIX, RENDERING_LEVEL_OBJECT, 1)
+        self.uniformName = UNAME_VIEW_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class ModelViewMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MODELVIEW_MATRIX, UNIFORM_MODELVIEW_MATRIX, RENDERING_LEVEL_SCENE, 1)
+        self.uniformName = UNAME_MODELVIEW_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class NormalMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_NORMAL_MATRIX, UNIFORM_NORMAL_MATRIX, RENDERING_LEVEL_SCENE, 1)
+        self.uniformName = UNAME_NORMAL_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class ProjectionMatrixUniformKey(UniformKey):
+    def __init__(self):
+        UniformKey.__init__(self, UNIFORMGENERATOR_PROJECTION_MATRIX, UNIFORM_PROJECTION_MATRIX, RENDERING_LEVEL_OBJECT,
+                            1)
+        self.uniformName = UNAME_PROJECTION_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class MaterialAmbientColorKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_AMBIENT_COLOR, UNIFORM_MATERIAL_AMBIENT_COLOR,
+                            RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_MATERIAL_AMBIENT_COLOR
+        self.uniformDataType = DATATYPE_VEC4
+
+class MaterialAmbientIntensityKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_AMBIENT_INTENSITY, UNIFORM_MATERIAL_AMBIENT_INTENSITY,
+                            RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_MATERIAL_AMBIENT_INTENSITY
+        self.uniformDataType = DATATYPE_FLOAT
+
+class MaterialDiffuseColorKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_DIFFUSE_COLOR, UNIFORM_MATERIAL_DIFFUSE_COLOR,
+                            RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_MATERIAL_DIFFUSE_COLOR
+        self.uniformDataType = DATATYPE_VEC4
+
+class MaterialDiffuseIntensityKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_DIFFUSE_INTENSITY, UNIFORM_MATERIAL_DIFFUSE_INTENSITY,
+                            RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_MATERIAL_DIFFUSE_INTENSITY
+        self.uniformDataType = DATATYPE_FLOAT
+
+class MaterialSpecularColorKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_SPECULAR_COLOR, UNIFORM_MATERIAL_SPECULAR_COLOR,
+                            RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_MATERIAL_SPECULAR_COLOR
+        self.uniformDataType = DATATYPE_VEC4
+
+class MaterialSpecularIntensityKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_MATERIAL_SPECULAR_INTENSITY, UNIFORM_MATERIAL_SPECULAR_INTENSITY,
+                            RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_MATERIAL_SPECULAR_INTENSITY
+        self.uniformDataType = DATATYPE_FLOAT
+
+class BoneMatrixKey(UniformKey):
+    def __init__(self, count):
+        UniformKey.__init__(self, UNIFORMGENERATOR_BONE_MATRIX, UNIFORM_BONE_MATRIX, RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_BONE_MATRIX
+        self.uniformDataType = DATATYPE_MAT4
+
+class TexturedMaterialKey(UniformKey):
+    def __init__(self, count=1):
+        UniformKey.__init__(self, UNIFORMGENERATOR_TEXTURED_MATERIAL, UNIFORM_TEXTURED_MATERIAL, count)
+        self.uniformName = UNAME_TEXTURED_MATERIAL
+        self.uniformDataType = DATATYPE_FLOAT
+
+class TextureSamplerKey(UniformKey):
+    def __init__(self, count=1, index=0):
+        UniformKey.__init__(self, UNIFORMGENERATOR_TEXTURE, UNIFORM_TEXTURE, RENDERING_LEVEL_OBJECT, count)
+        self.uniformName = UNAME_TEXTURE_SAMPLER
+        self.uniformDataType = DATATYPE_SAMPLER2D
+
+class LightPositionKey(UniformKey):
+    def __init__(self, count=1, index=0):
+        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION, UNIFORM_LIGHT_POSITION, RENDERING_LEVEL_OBJECT,
+                            count, index)
+        self.uniformName = UNAME_LIGHT_POSITION
+        self.uniformDataType = DATATYPE_VEC4
+
+class LightColorKey(UniformKey):
+    def __init__(self, count=1, index=0):
+        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR, UNIFORM_LIGHT_COLOR, RENDERING_LEVEL_OBJECT, count,
+                            index)
+        self.uniformName = UNAME_LIGHT_COLOR
+        self.uniformDataType = DATATYPE_VEC4
+
+class LightsPositionArrayKey(UniformKey):
+    def __init__(self, count=1):
+        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_POSITION_ARRAY, UNIFORM_LIGHT_POSITION_ARRAY,
+                            RENDERING_LEVEL_SCENE, count)
+        self.uniformName = UNAME_LIGHT_POSITION_ARRAY
+        self.uniformDataType = DATATYPE_VEC4
+
+class LightsColorArrayKey(UniformKey):
+    def __init__(self, count=1):
+        UniformKey.__init__(self, UNIFORMGENERATOR_LIGHT_COLOR_ARRAY, UNIFORM_LIGHT_COLOR_ARRAY, RENDERING_LEVEL_SCENE,
+                            count)
+        self.uniformName = UNAME_LIGHT_COLOR_ARRAY
+        self.uniformDataType = DATATYPE_VEC4
 
 
 
@@ -1780,103 +1751,6 @@ class MaterialsExporter:
             material = Material(name, diffuse, specular, ambient, texture)
             self.outMaterials.addMaterial(material)
 
-class ModelExporter:
-    def __init__(self, meshOb, outModel):
-        self.meshOb = meshOb
-        self.outModel = outModel
-        self.boneAligner = None
-    def setName(self):
-        self.outModel.setName(self.meshOb.name)
-    def setShader(self):
-        #TODO: Change the Exporter here!!!
-        self.outModel.ShaderProgram = ShaderGenerator(self.outModel, Exporter.sceneObjectsList).genShaderProgram()
-    def getSkeleton(self):
-        for mod in self.meshOb.modifiers:
-            if mod.type == 'ARMATURE':
-                return mod.object
-    def getMaterials(self):
-        if (len(self.meshOb.material_slots) > 0):
-            return self.meshOb.material_slots
-        else:
-            return None
-    def setUniformKeys(self):
-        keys = self.outModel.UniformKeys
-        keys.addUniformKey(ModelMatrixUniformKey())
-        keys.addUniformKey(NormalMatrixUniformKey())
-        mesh = self.outModel.Mesh
-        #TODO: Obtener los materiales del meshob y listos
-        materials = self.outModel.Materials
-        if materials is not None:
-            numMat = len(materials)
-            keys.addUniformKey(MaterialAmbientColorKey(numMat))
-            keys.addUniformKey(MaterialAmbientIntensityKey(numMat))
-            keys.addUniformKey(MaterialDiffuseColorKey(numMat))
-            keys.addUniformKey(MaterialDiffuseIntensityKey(numMat))
-            keys.addUniformKey(MaterialSpecularColorKey(numMat))
-            keys.addUniformKey(MaterialSpecularIntensityKey(numMat))
-            numTextures = 0
-            for mat in materials:
-                if mat.hasTexture():
-                    numTextures += 1
-            if numTextures > 0:
-                keys.addUniformKey(TextureSamplerKey(numTextures))
-                #keys.addUniformKey(TexturedMaterialKey(numMat))
-        skeleton = self.getSkeleton()
-        if skeleton is not None:
-            bones = mesh.getBoneIndices()
-            keys.addUniformKey(BoneMatrixKey(len(bones)))
-    def export(self):
-        global meshOb
-        meshOb = self.meshOb
-        self.setName()
-        skeletonOb = self.getSkeleton()
-        if skeletonOb is not None:
-            self.outModel.Skeleton = Skeleton()
-            self.boneAligner = BoneIndicesAligner(skeletonOb)
-            MeshExporter(self.meshOb, self.outModel.Mesh,self.boneAligner).export()
-            poseBones = [skeletonOb.pose.bones[i] for i in self.outModel.Mesh.getBoneIndices()]
-            SkeletonExporter(skeletonOb, self.meshOb, self.outModel.Skeleton, poseBones, self.boneAligner).export()
-        else:
-            MeshExporter(self.meshOb, self.outModel.Mesh).export()
-        TransformExporter(self.meshOb, self.outModel.Transform).export()
-        MaterialsExporter(self.meshOb, self.outModel, self.outModel.Materials).export()
-        self.setUniformKeys()
-        self.setShader()
-
-class CameraExporter:
-    def __init__(self, cameraOb, outCamera):
-        self.cameraOb = cameraOb
-        self.camera = cameraOb.data
-        self.outCamera = outCamera
-    def setName(self):
-        self.outCamera.setName(self.cameraOb.name)
-    def setLens(self):
-        if self.camera.type == "PERSP":
-            self.outCamera.Lens = PerspectiveLens()
-            self.exportPerspectiveLens(self.camera, self.outCamera.Lens)
-        elif self.camera.type == "ORTHO":
-            self.outCamera.Lens = OrthographicLens()
-            self.exportOrthographicLens(self.camera, self.outCamera.Lens)
-    def exportPerspectiveLens(self,camera,lens):
-        #TODO: Delete, this won't be used anymore
-        lens.AspectRatio = mround(camera.angle_x)
-        lens.ClipStart = mround(camera.clip_start)
-        lens.ClipEnd = mround(camera.clip_end)
-        curUnits, camera.lens_unit = camera.lens_unit, "FOV"
-        lens.FOV = mround(camera.lens)
-        camera.lens_unit = curUnits
-    def exportOrthographicLens(self,camera,lens):
-        lens.OrthographicScale = camera.ortho_scale
-    def setUniformKeys(self):
-        keys = self.outCamera.UniformKeys
-        keys.addUniformKey(ViewMatrixUniformKey())
-        keys.addUniformKey(ProjectionMatrixUniformKey())
-    def export(self):
-        self.setName()
-        self.setLens()
-        TransformExporter(self.cameraOb, self.outCamera.Transform).export()
-        self.setUniformKeys()
-
 class SkeletonPoseExporter:
     def __init__(self, skeletonOb, meshOb, poseBones, outSkeleton):
         self.skeletonOb = skeletonOb
@@ -2041,6 +1915,115 @@ class SkeletonExporter:
         self.getSkeletonPose()
         SkeletalActionsExporter(self.skeletonOb, self.meshOb, self.poseBones, self.outSkeleton.Actions).export()
 
+
+class ModelExporter:
+    def __init__(self, meshOb, outModel):
+        self.meshOb = meshOb
+        self.outModel = outModel
+        self.boneAligner = None
+
+    def setName(self):
+        self.outModel.setName(self.meshOb.name)
+
+    def setShader(self):
+        # TODO: Change the Exporter here!!!
+        self.outModel.ShaderProgram = ShaderGenerator(self.outModel, Exporter.sceneTree).genShaderProgram()
+
+    def getSkeleton(self):
+        for mod in self.meshOb.modifiers:
+            if mod.type == 'ARMATURE':
+                return mod.object
+
+    def getMaterials(self):
+        if (len(self.meshOb.material_slots) > 0):
+            return self.meshOb.material_slots
+        else:
+            return None
+
+    def setUniformKeys(self):
+        keys = self.outModel.UniformKeys
+        keys.addUniformKey(ModelMatrixUniformKey())
+        keys.addUniformKey(NormalMatrixUniformKey())
+        mesh = self.outModel.Mesh
+        # TODO: Obtener los materiales del meshob y listos
+        materials = self.outModel.Materials
+        if materials is not None:
+            numMat = len(materials)
+            keys.addUniformKey(MaterialAmbientColorKey(numMat))
+            keys.addUniformKey(MaterialAmbientIntensityKey(numMat))
+            keys.addUniformKey(MaterialDiffuseColorKey(numMat))
+            keys.addUniformKey(MaterialDiffuseIntensityKey(numMat))
+            keys.addUniformKey(MaterialSpecularColorKey(numMat))
+            keys.addUniformKey(MaterialSpecularIntensityKey(numMat))
+            numTextures = 0
+            for mat in materials:
+                if mat.hasTexture():
+                    numTextures += 1
+            if numTextures > 0:
+                keys.addUniformKey(TextureSamplerKey(numTextures))
+                # keys.addUniformKey(TexturedMaterialKey(numMat))
+        skeleton = self.getSkeleton()
+        if skeleton is not None:
+            bones = mesh.getBoneIndices()
+            keys.addUniformKey(BoneMatrixKey(len(bones)))
+
+    def export(self):
+        self.setName()
+        skeletonOb = self.getSkeleton()
+        if skeletonOb is not None:
+            self.outModel.Skeleton = Skeleton()
+            self.boneAligner = BoneIndicesAligner(skeletonOb)
+            MeshExporter(self.meshOb, self.outModel.Mesh, self.boneAligner).export()
+            poseBones = [skeletonOb.pose.bones[i] for i in self.outModel.Mesh.getBoneIndices()]
+            SkeletonExporter(skeletonOb, self.meshOb, self.outModel.Skeleton, poseBones, self.boneAligner).export()
+        else:
+            MeshExporter(self.meshOb, self.outModel.Mesh).export()
+        TransformExporter(self.meshOb, self.outModel.Transform).export()
+        MaterialsExporter(self.meshOb, self.outModel, self.outModel.Materials).export()
+        self.setUniformKeys()
+        self.setShader()
+
+
+class CameraExporter:
+    def __init__(self, cameraOb, outCamera):
+        self.cameraOb = cameraOb
+        self.camera = cameraOb.data
+        self.outCamera = outCamera
+
+    def setName(self):
+        self.outCamera.setName(self.cameraOb.name)
+
+    def setLens(self):
+        if self.camera.type == "PERSP":
+            self.outCamera.Lens = PerspectiveLens()
+            self.exportPerspectiveLens(self.camera, self.outCamera.Lens)
+        elif self.camera.type == "ORTHO":
+            self.outCamera.Lens = OrthographicLens()
+            self.exportOrthographicLens(self.camera, self.outCamera.Lens)
+
+    def exportPerspectiveLens(self, camera, lens):
+        # TODO: Delete, this won't be used anymore
+        lens.AspectRatio = mround(camera.angle_x)
+        lens.ClipStart = mround(camera.clip_start)
+        lens.ClipEnd = mround(camera.clip_end)
+        curUnits, camera.lens_unit = camera.lens_unit, "FOV"
+        lens.FOV = mround(camera.lens)
+        camera.lens_unit = curUnits
+
+    def exportOrthographicLens(self, camera, lens):
+        lens.OrthographicScale = camera.ortho_scale
+
+    def setUniformKeys(self):
+        keys = self.outCamera.UniformKeys
+        keys.addUniformKey(ViewMatrixUniformKey())
+        keys.addUniformKey(ProjectionMatrixUniformKey())
+
+    def export(self):
+        self.setName()
+        self.setLens()
+        TransformExporter(self.cameraOb, self.outCamera.Transform).export()
+        self.setUniformKeys()
+
 class LightExporter:
     def __init__(self, lightOb, outLight):
         self.lightOb = lightOb
@@ -2086,7 +2069,7 @@ class SceneExporter:
         self.outScene = outScene
     def setLightsUniformKeys(self):
         keys = self.outScene.UniformKeys
-        lights = Exporter.sceneObjectsList.getByType(SCENEOBJTYPE_LIGHT)
+        lights = Exporter.sceneTree.getByType(SCENEOBJTYPE_LIGHT)
         if len(lights) == 0:
             return
         keys.addUniformKey(LightsPositionArrayKey(len(lights)))
@@ -2100,7 +2083,8 @@ class SceneExporter:
     def export(self):
         self.setUniformKeys()
 
-class SceneObjectsListExporter:
+
+class SceneTreeExporter:
     def __init__(self, sceneObjs, outList):
         self.sceneObjs = sceneObjs
         self.outList = outList
@@ -2207,10 +2191,81 @@ def prettyPrintJSON(scene):
             i = i+1
     return r
 
-#def writeToFile(filename, content):
-#    file = open(filename,"w")
-#    file.write(content)
-#    file.close()
+
+def getJSON(data):
+    return json.dumps(data, indent=None, separators=(',', ':'), sort_keys=True, cls=SceneJSONEncoder)
+
+
+def writeToFile2(filename, content):
+    file = open(filename, "w")
+    file.write(content)
+    file.close()
+
+
+class FileWriter:
+    def __init__(self, filename):
+        self.file = open(filename, "wb")
+
+    def writeStringLine(self, line):
+        self.file.write(bytearray(line + '\n', encoding='ascii'))
+
+    def writeString(self, s):
+        self.file.write(bytearray(s, encoding='ascii'))
+
+    def writeInt(self, i):
+        self.file.write(struct.pack('>I', i))
+
+    def writeEOL(self):
+        self.file.write(bytearray('\n', encoding='ascii'))
+
+    def writeRaw(self, data):
+        self.file.write(data)
+
+    def writeTag(self, text, num):
+        self.writeString(text)
+        self.writeInt(num)
+        self.writeEOL()
+
+    def writeComposedTag(self, tag, lenid, id, lensection):
+        self.writeString(tag)
+        self.writeInt(lenid)
+        self.writeString(id)
+        self.writeInt(lensection)
+        self.writeEOL()
+
+    def flush(self):
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+
+
+def writeToFile3(filename, metadata, sceneTree, textures):
+    w = FileWriter(filename)
+    w.writeStringLine('MRROBOTTOFILE')
+    meta = getJSON(metadata)
+    hierarchy = getJSON(sceneTree.Hierarchy)
+    w.writeTag('META', len(meta) + 1)
+    w.writeStringLine(meta)
+    w.writeTag('HIER', len(hierarchy) + 1)
+    w.writeStringLine(hierarchy)
+    w.writeTag('TEXT', len(textures))
+    for item in textures.items():
+        f = open(item[1], 'rb')
+        image = f.read()
+        w.writeComposedTag('NAME', len(item[0]), item[0], len(image))
+        w.writeRaw(image)
+        w.writeEOL()
+        f.close()
+    objects = sceneTree.SceneObjects
+    w.writeTag('SOBJ', len(objects))
+    for obj in objects:
+        name = obj.Name
+        json = getJSON(obj)
+        w.writeComposedTag('NAME', len(name), name, len(json) + 1)
+        w.writeStringLine(json)
+    w.writeString('FNSH')
+    w.close()
 
 def writeToFile(filename, json, textures):
     file = open(filename, "wb")
@@ -2244,8 +2299,9 @@ class SceneJSONEncoder(json.JSONEncoder):
         listTypes = (Vertex,AttributeKeyList,Vector,Quaternion,Matrix,AttributeList,UniformList, MaterialList, UniformKeyList,Color)
         #All elements in dictTypes will be serialized as dicts
         dictTypes = [AttributeKey, Mesh, Model, Transform, Scene, Camera, Lens, ShaderProgram, Attribute, UniformKey]
-        dictTypes += [Uniform, SceneObjectsList, Hierarchy, HierarchyObject, Material, MaterialLight,Texture, Action, Skeleton]
-        dictTypes += [Frame, PoseBone, Bone, BoneIndex, Light]
+        dictTypes += [Uniform, SceneTree, Hierarchy, HierarchyObject, Material, MaterialLight, Texture, Action,
+                      Skeleton]
+        dictTypes += [Frame, PoseBone, Bone, BoneIndex, Light, MrrMetadata]
         dictTypes = tuple(dictTypes)
         if isinstance(obj,dictTypes):
             return dict(obj)
@@ -2255,20 +2311,27 @@ class SceneJSONEncoder(json.JSONEncoder):
 
 
 class Exporter:
-    sceneObjectsList = SceneObjectsList()
+    # TODO: Pass arguments to metadata
+    metadata = MrrMetadata()
+    sceneTree = SceneTree()
 
     def __init__(self):
-        #self.filepath = bpy.path.abspath(D.filepath).replace(bpy.path.basename(D.filepath),"")
         self.filename = os.path.splitext(D.filepath)[0]
 
+    def __joinMetaData(self):
+        Exporter.sceneTree.__dict__['Meta'] = Exporter.metadata
+
     def export(self):
-        SceneObjectsListExporter(D.objects,Exporter.sceneObjectsList).export()
-        sceneJson = json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder)
-        #writeToFile(self.filename + EXT, prettyPrintJSON(sceneObjectsList))
-        #writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
-        #writeToFile(self.filename + EXT, sceneJson)
-        #writeToFile(self.filename + EXT, prettyPrintJSON(Exporter.sceneObjectsList))
-        writeToFile(self.filename + '.mrr', sceneJson, Exporter.sceneObjectsList.textures)
+        SceneTreeExporter(D.objects, Exporter.sceneTree).export()
+        self.__joinMetaData()
+        sceneJson = json.dumps(Exporter.sceneTree, indent=None, separators=(',', ':'), sort_keys=True,
+                               cls=SceneJSONEncoder)
+        ####writeToFile(self.filename + EXT, prettyPrintJSON(sceneObjectsList))
+        ###writeToFile(self.filename + EXT, json.dumps(Exporter.sceneObjectsList, indent = None, separators = (',',':'), sort_keys = True, cls = SceneJSONEncoder))
+        ###writeToFile(self.filename + EXT, sceneJson)
+        writeToFile3(self.filename + '.mrr', Exporter.metadata, Exporter.sceneTree, Exporter.sceneTree.textures)
+        # writeToFile2(self.filename + '.json', prettyPrintJSON(Exporter.sceneTree))
+        #writeToFile(self.filename + '.mrraux', sceneJson, Exporter.sceneTree.textures)
         
 class Executor:
     def __init__(self):
