@@ -683,7 +683,7 @@ class Action:
     def __init__(self, name, acType):
         self.Type = acType
         self.Name = name
-        self.FPS = None
+        self.Speed = 1.0
         self.KeyFrames = []
     def addKeyFrame(self, frame):
         self.KeyFrames.append(frame)
@@ -1823,11 +1823,11 @@ class SingleSkeletalActionExporter:
             for bone in bones:
                 frame.addBone(bone)
             self.outAction.addKeyFrame(frame)
-    def setFps(self):
-        self.outAction.FPS = C.scene.render.fps
+    def setSpeed(self):
+        self.outAction.Speed = C.scene.render.fps
     def export(self):
         self.setAction()
-        self.setFps()
+        self.setSpeed()
         self.getKeyFrames()
         self.restoreOriginalKeyframe()
         self.restoreOriginalAction()
