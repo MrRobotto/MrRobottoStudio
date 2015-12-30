@@ -5,9 +5,9 @@ from studioweb import urls as studio_urls
 from studioservices import urls as services_urls
 import MrRobottoStudioServer.settings as settings
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-)
+]
 
 urlpatterns += studio_urls.urlpatterns
 urlpatterns += services_urls.urlpatterns

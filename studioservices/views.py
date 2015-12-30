@@ -140,6 +140,7 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
             #    return Response({'error': 'Not attemp_id field in url query'}, status=status.HTTP_400_BAD_REQUEST)
             id = request.data['android_id']
             name = request.data['name']
+            #TODO: Make registration via a certain code
             #pk = request.data['attemp_id']
             #attempQuery = RegistrationAttemp.objects.filter(pk=pk, user=request.user, is_used=False)
             #if len(attempQuery) == 1:

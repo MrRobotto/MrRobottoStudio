@@ -300,30 +300,30 @@ class ModelExporter:
             return None
     def setUniformKeys(self):
         keys = self.outModel.UniformKeys
-        keys.addUniformKey(ModelMatrixUniformKey())
-        keys.addUniformKey(NormalMatrixUniformKey())
+        keys.addUniformKeySchema(ModelMatrixUniformKey())
+        keys.addUniformKeySchema(NormalMatrixUniformKey())
         mesh = self.outModel.Mesh
         #TODO: Obtener los materiales del meshob y listos
         materials = self.outModel.Materials
         if materials is not None:
             numMat = len(materials)
-            keys.addUniformKey(MaterialAmbientColorKey(numMat))
-            keys.addUniformKey(MaterialAmbientIntensityKey(numMat))
-            keys.addUniformKey(MaterialDiffuseColorKey(numMat))
-            keys.addUniformKey(MaterialDiffuseIntensityKey(numMat))
-            keys.addUniformKey(MaterialSpecularColorKey(numMat))
-            keys.addUniformKey(MaterialSpecularIntensityKey(numMat))
+            keys.addUniformKeySchema(MaterialAmbientColorKey(numMat))
+            keys.addUniformKeySchema(MaterialAmbientIntensityKey(numMat))
+            keys.addUniformKeySchema(MaterialDiffuseColorKey(numMat))
+            keys.addUniformKeySchema(MaterialDiffuseIntensityKey(numMat))
+            keys.addUniformKeySchema(MaterialSpecularColorKey(numMat))
+            keys.addUniformKeySchema(MaterialSpecularIntensityKey(numMat))
             numTextures = 0
             for mat in materials:
                 if mat.hasTexture():
                     numTextures += 1
             if numTextures > 0:
-                keys.addUniformKey(TextureSamplerKey(numTextures))
+                keys.addUniformKeySchema(TextureSamplerKey(numTextures))
                 #keys.addUniformKey(TexturedMaterialKey(numMat))
         skeleton = self.getSkeleton()
         if skeleton is not None:
             bones = mesh.getBoneIndices()
-            keys.addUniformKey(BoneMatrixKey(len(bones)))
+            keys.addUniformKeySchema(BoneMatrixKey(len(bones)))
     def export(self):
         global meshOb
         meshOb = self.meshOb
@@ -368,8 +368,8 @@ class CameraExporter:
         lens.OrthographicScale = camera.ortho_scale
     def setUniformKeys(self):
         keys = self.outCamera.UniformKeys
-        keys.addUniformKey(ViewMatrixUniformKey())
-        keys.addUniformKey(ProjectionMatrixUniformKey())
+        keys.addUniformKeySchema(ViewMatrixUniformKey())
+        keys.addUniformKeySchema(ProjectionMatrixUniformKey())
     def export(self):
         self.setName()
         self.setLens()
@@ -571,8 +571,8 @@ class LightExporter:
         self.getSpotSize()
     def setUniformKeys(self):
         keys = self.outLight.UniformKeys
-        keys.addUniformKey(LightPositionKey())
-        keys.addUniformKey(LightColorKey())
+        keys.addUniformKeySchema(LightPositionKey())
+        keys.addUniformKeySchema(LightColorKey())
     def export(self):
         self.getLightType()
         self.getName()
@@ -592,13 +592,13 @@ class SceneExporter:
         lights = Exporter.sceneObjectsList.getByType(SCENEOBJTYPE_LIGHT)
         if len(lights) == 0:
             return
-        keys.addUniformKey(LightsPositionArrayKey(len(lights)))
-        keys.addUniformKey(LightsColorArrayKey(len(lights)))
-        keys.addUniformKey(ModelViewMatrixUniformKey())
+        keys.addUniformKeySchema(LightsPositionArrayKey(len(lights)))
+        keys.addUniformKeySchema(LightsColorArrayKey(len(lights)))
+        keys.addUniformKeySchema(ModelViewMatrixUniformKey())
         #keys.addUniformKey(NormalMatrixUniformKey())
     def setUniformKeys(self):
         keys = self.outScene.UniformKeys
-        keys.addUniformKey(MVPUniformKey())
+        keys.addUniformKeySchema(MVPUniformKey())
         self.setLightsUniformKeys()
     def export(self):
         self.setUniformKeys()

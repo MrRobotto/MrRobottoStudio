@@ -22,8 +22,6 @@ SECRET_KEY = '$rrk_cc0!)h3-(l%v2c3w3zbongh%ly24m=+=rv1a9i3wiws02'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-TEMPLATE_DEBUG = True
-
 ALLOWED_HOSTS = []
 
 
