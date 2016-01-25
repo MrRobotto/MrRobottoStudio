@@ -33,10 +33,9 @@ class RegisterViewSet(viewsets.GenericViewSet,
     def create(self, request, *args, **kwargs):
         s = self.get_serializer(data=request.data)
         if s.is_valid(raise_exception=True):
-            user = User.objects.create_user(username=s.data['username'],
-                                            password=s.data['password'])
-            token, created = Token.objects.get_or_create(user=user)
-            user = authenticate(username=s.data['username'], password=s.data['password'])
+            d = s.save()
+            user = d['user']
+            token = d['token']
             login(request, user)
             return Response({'username': user.username, 'token': token.key}, status=status.HTTP_201_CREATED)
 
@@ -65,7 +64,6 @@ class LogoutViewSet(viewsets.GenericViewSet,
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        user = request.user
         logout(request)
         #TODO: Remove token
         return Response()
@@ -141,14 +139,6 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
             id = request.data['android_id']
             name = request.data['name']
             #TODO: Make registration via a certain code
-            #pk = request.data['attemp_id']
-            #attempQuery = RegistrationAttemp.objects.filter(pk=pk, user=request.user, is_used=False)
-            #if len(attempQuery) == 1:
-            #    attemp = attempQuery.first()
-            #else:
-            #    return Response({'error': 'Expired registration code'}, status=status.HTTP_400_BAD_REQUEST)
-            #attemp.is_used = True
-            #attemp.save()
             device, created1 = AndroidDevice.objects.get_or_create(android_id=id, user=request.user)
             if name == "":
                 name = id
@@ -162,15 +152,13 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
         except:
             return Response({'error': 'bad request data'}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_register_data(self, request):
+    def __get_register_data(self, request):
         token, created = Token.objects.get_or_create(user=request.user)
-        #attemp, created = RegistrationAttemp.objects.get_or_create(user=request.user, is_used=False)
-        #url = utils.get_base_url() + reverse("api-devices-list") + "?attemp_id=" + str(attemp.pk)
         return {'base_url': utils.get_base_url(), 'token':token.key}
 
     @list_route(methods=['GET'])
     def qrcode(self, request, *args, **kwargs):
-        img = qrcode.main.make(self.get_register_data(request))
+        img = qrcode.main.make(self.__get_register_data(request))
         f = io.BytesIO()
         img.save(f, kind='PNG')
         f.seek(0)
@@ -181,7 +169,7 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
         d = {'base_url': utils.get_base_url()}
         return Response(d)
 
-    @detail_route(methods=['GET'])
+    @detail_route(methods=['POST'])
     def connect(self, request, *args, **kwargs):
         pk = kwargs["pk"]
         try:
@@ -192,7 +180,7 @@ class AndroidDeviceViewSet(viewsets.ModelViewSet):
         except:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-    @detail_route(methods=['GET'])
+    @detail_route(methods=['POST'])
     def disconnect(self, request, *args, **kwargs):
         pk = kwargs["pk"]
         try:
@@ -217,12 +205,12 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
         else:
             return MrrFile.objects.filter(user=self.request.user).order_by('-upload_date')
 
-    def save_blend(self, request):
+    def __save_blend(self, request):
         #Obtain the file
         f = request.FILES['blend']
         base_name = os.path.splitext(os.path.basename(f.name))[0]
         mrr = self.get_queryset().filter(user=self.request.user, base_name=base_name).first()
-        created = not (mrr == None)
+        created = not (mrr is None)
         if not created:
             try:
                 os.remove(mrr.blend_file.path)
@@ -271,7 +259,7 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         if 'blend' in request.FILES:
             self.save_textures(request)
-            mrr, created = self.save_blend(request)
+            mrr, created = self.__save_blend(request)
             return Response(MrrFilesSerializer().to_representation(mrr), status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         else:
             return Response({'error': 'No file selected'}, status=status.HTTP_400_BAD_REQUEST)
@@ -313,16 +301,16 @@ class MrrFilesViewSet(viewsets.ModelViewSet):
         return f
 
     #TODO: Check existence
-    @detail_route(methods=['GET'])
+    @detail_route(methods=['POST'])
     def select(self, request, *args, **kwargs):
         pk = kwargs['pk']
         f = self.select_file(pk)
-        return Response(MrrFilesSerializer().to_representation(f) ,status=status.HTTP_200_OK)
+        return Response(MrrFilesSerializer().to_representation(f), status=status.HTTP_200_OK)
 
     @list_route(methods=['GET'])
     def selected(self, request, *args, **kwargs):
         f = self.get_queryset().filter(is_selected=True)
         if len(f) > 0:
             f = f[0]
-            return Response(MrrFilesSerializer().to_representation(f) ,status=status.HTTP_200_OK)
+            return Response(MrrFilesSerializer().to_representation(f), status=status.HTTP_200_OK)
         return Response({} ,status=status.HTTP_200_OK)

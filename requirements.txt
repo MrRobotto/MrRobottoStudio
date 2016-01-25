@@ -1,0 +1,5 @@
+Django==1.9
+djangorestframework==3.3.2
+django-rest-swagger==0.3.4
+qrcode==5.1
+Pillow==3.0.0

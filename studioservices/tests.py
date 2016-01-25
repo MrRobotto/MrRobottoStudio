@@ -20,6 +20,7 @@ class RegisterTests(APITestCase):
         data = {'username': 'test2', 'password':'test2', 'password2':'test2'}
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.client.logout()
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -34,6 +35,7 @@ class RegisterTests(APITestCase):
 class LoginTest(APITestCase):
     def test_good_login(self):
         create_user(self, 'test_login1')
+        self.client.logout()
         url = reverse('api-login-list')
         data = {'username': 'test_login1', 'password':'test_login1'}
         response = self.client.post(url, data, format='json')
@@ -41,6 +43,7 @@ class LoginTest(APITestCase):
 
     def test_bad_login(self):
         create_user(self, 'test_login2')
+        self.client.logout()
         url = reverse('api-login-list')
         data = {'username': 'test_login2', 'password':'test_wrong'}
         response = self.client.post(url, data, format='json')

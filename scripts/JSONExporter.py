@@ -634,6 +634,11 @@ class Texture:
         d = self.__dict__.copy()
         d.pop('path')
         yield from d.items()
+    def __repr__(self):
+        d = dict()
+        d["Name"] = self.Name
+        d["Path"] = self.path
+        return str(d)
 
 class Lens:
     def __init__(self, Type):
@@ -1736,6 +1741,8 @@ class MaterialsExporter:
                     if not os.path.exists(path):
                         #Else we try to find it in the same directory
                         path = os.path.join(os.path.dirname(D.filepath), activeTextureName)
+                        if not os.path.exists(path):
+                            return None
                     t=Texture(activeTextureName,index=self.textureIndex,path=path)
                     self.textureIndex+=1
                     return t

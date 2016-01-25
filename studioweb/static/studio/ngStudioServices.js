@@ -12,7 +12,7 @@ studioServices.factory('MrrFiles', ['$resource',
         return $resource(base + 'api/mrrfiles/?format=json', null,
             {
                 'delete': {method: 'DELETE', url: base + 'api/mrrfiles/:mrrId'},
-                'select': {method: 'GET', url: base + 'api/mrrfiles/:mrrId/select'},
+                'select': {method: 'POST', url: base + 'api/mrrfiles/:mrrId/select'},
                 'selected': {method: 'GET', url: base + 'api/mrrfiles/selected/'}
             }
         );

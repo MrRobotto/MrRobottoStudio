@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework.authtoken.models import Token
 
 from studioservices.models import AndroidDevice, MrrFile
@@ -10,6 +10,13 @@ class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=50)
     password = serializers.CharField(max_length=128, style={'input_type': 'password'})
     password2 = serializers.CharField(max_length=128, style={'input_type': 'password'})
+
+    def create(self, validated_data):
+        user = User.objects.create_user(username=validated_data['username'],
+                                        password=validated_data['password'])
+        token, created = Token.objects.get_or_create(user=user)
+        user = authenticate(username=validated_data['username'], password=validated_data['password'])
+        return {'token': token, 'user': user}
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
